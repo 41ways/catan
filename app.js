@@ -6,6 +6,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var RES = R.RES, RN = R.RES_NAME;
   var PCOLOR = { red: '#d95f4a', blue: '#5a8fd9', orange: '#e09a3e', white: '#d8dce6' };
+  var EMOJI = { b: '\uD83E\uDDF1', l: '\uD83E\uDEB5', w: '\uD83D\uDC11', g: '\uD83C\uDF3E', o: '\uD83E\uDEA8' };  // 🧱 🪵 🐑 🌾 🪨
+  function rchip(c) { return el('i', 'rc r-' + c, EMOJI[c]); }
   var S = 52;                                     // 육각형 한 변(px)
   var SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -92,6 +94,11 @@
       App.build = null; App.discardSel = [];
     }
     App.view = v;
+    // 새로 굴린 주사위면 가운데에 연출로 보여준다
+    if (v.dice) {
+      var dk = v.turnCount + '-' + v.dice[0] + v.dice[1];
+      if (App.diceKey !== dk) { App.diceKey = dk; showDiceRoll(v.dice); }
+    }
     render();
     if (v.phase === 'over') showOver(v);
     scheduleBot();
@@ -183,6 +190,47 @@
     pushViews();
   }
 
+  /* ---------------- 주사위 연출 ---------------- */
+
+  var PIP_CELLS = {
+    1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9]
+  };
+  function dieFace(elm, n) {
+    elm.innerHTML = '';
+    var cells = PIP_CELLS[n] || [];
+    for (var i = 1; i <= 9; i++) {
+      var cell = document.createElement('span');
+      if (cells.indexOf(i) >= 0) cell.appendChild(document.createElement('i'));
+      elm.appendChild(cell);
+    }
+  }
+  var diceSpin = null, diceHide = null;
+  function showDiceRoll(d) {
+    var ov = $('diceOverlay');
+    ov.classList.remove('hidden'); ov.classList.remove('out');
+    $('diceSum').textContent = ''; $('diceNote').textContent = '';
+    var b1 = $('bd1'), b2 = $('bd2');
+    b1.classList.add('rolling'); b2.classList.add('rolling');
+    clearInterval(diceSpin); clearTimeout(diceHide);
+    var t0 = Date.now();
+    diceSpin = setInterval(function () {
+      dieFace(b1, 1 + Math.floor(Math.random() * 6));
+      dieFace(b2, 1 + Math.floor(Math.random() * 6));
+      if (Date.now() - t0 > 620) {
+        clearInterval(diceSpin);
+        b1.classList.remove('rolling'); b2.classList.remove('rolling');
+        dieFace(b1, d[0]); dieFace(b2, d[1]);
+        var sum = d[0] + d[1];
+        $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
+        $('diceNote').textContent = sum === 7 ? '도둑이 움직입니다' : sum + ' 타일에서 자원이 나옵니다';
+        diceHide = setTimeout(function () {
+          ov.classList.add('out');
+          setTimeout(function () { ov.classList.add('hidden'); }, 300);
+        }, 1200);
+      }
+    }, 85);
+  }
+
   /* ---------------- 판 그리기 ---------------- */
 
   function hexPoints(cx, cy) {
@@ -226,6 +274,11 @@
       }
       g.appendChild(hexEl);
 
+      // 이 타일에서 뭐가 나오는지 — 이모지로 바로 보이게
+      var emo = svgEl('text', { x: cx, y: cy - 17, 'font-size': 17, 'text-anchor': 'middle', class: 'terrEmo' });
+      emo.textContent = h.res ? EMOJI[h.res] : '\uD83C\uDF35';   // 사막은 🌵
+      g.appendChild(emo);
+
       if (h.number) {
         var hot = h.number === 6 || h.number === 8;
         g.appendChild(svgEl('circle', { cx: cx, cy: cy, r: 15, class: 'chipC' }));
@@ -243,7 +296,7 @@
       }
     });
 
-    // 항구 — 바다 쪽 배지 + 두 꼭짓점으로 점선
+    // 항구 — 바다 쪽 배지. 배지에서 점선이 닿은 두 꼭짓점이 항구 자리다
     v.board.ports.forEach(function (port) {
       var a = v.board.verts[port.verts[0]], b = v.board.verts[port.verts[1]];
       var hx = v.board.hexes[port.hex];
@@ -251,27 +304,22 @@
       // 육지 반대쪽으로 밀어낸다
       var ox = mx - px(hx.X), oy = my - py(hx.Y);
       var len = Math.hypot(ox, oy) || 1;
-      var bx = mx + ox / len * 22, by = my + oy / len * 22;
-      g.appendChild(svgEl('line', { x1: px(a.X), y1: py(a.Y), x2: bx, y2: by, class: 'portLine' }));
-      g.appendChild(svgEl('line', { x1: px(b.X), y1: py(b.Y), x2: bx, y2: by, class: 'portLine' }));
-      g.appendChild(svgEl('circle', { cx: bx, cy: by, r: 13, class: 'portB' }));
-      var pt = svgEl('text', { x: bx, y: by + 3.5, 'font-size': port.type === 'any' ? 10 : 9, class: 'portT' });
-      pt.textContent = port.type === 'any' ? '3:1' : RN[port.type].slice(0, 2) + '2:1';
+      var bx = mx + ox / len * 27, by = my + oy / len * 27;
+      [a, b].forEach(function (vv) {
+        g.appendChild(svgEl('line', { x1: px(vv.X), y1: py(vv.Y), x2: bx, y2: by, class: 'portLine' }));
+        g.appendChild(svgEl('circle', { cx: px(vv.X), cy: py(vv.Y), r: 3.4, class: 'portDot' }));
+      });
+      var w = port.type === 'any' ? 32 : 44;
+      g.appendChild(svgEl('rect', { x: bx - w / 2, y: by - 10.5, width: w, height: 21, rx: 10, class: 'portB' }));
+      var pt = svgEl('text', { x: bx, y: by + 4, 'font-size': 11, class: 'portT' });
+      pt.textContent = port.type === 'any' ? '3:1' : EMOJI[port.type] + ' 2:1';
       g.appendChild(pt);
-      if (port.type !== 'any') {
-        pt.textContent = '2:1';
-        g.appendChild(svgEl('rect', {
-          x: bx - 5, y: by - 11.5, width: 10, height: 5, rx: 1.5,
-          fill: getComputedStyle(document.documentElement).getPropertyValue('--r-' + port.type).trim() || '#999',
-          stroke: '#0b0e14', 'stroke-width': 0.7
-        }));
-      }
     });
 
     // 도둑
     (function () {
       var h = v.board.hexes[v.robber];
-      var cx = px(h.X), cy = py(h.Y) - (h.number ? 24 : 0);
+      var cx = px(h.X), cy = py(h.Y) + (h.number ? 23 : 10);
       var path = svgEl('path', {
         d: 'M' + cx + ' ' + (cy - 12) + ' a7 7 0 0 1 7 7 c0 3 -1.6 4.5 -1.6 7 h-10.8 c0 -2.5 -1.6 -4 -1.6 -7 a7 7 0 0 1 7 -7 z ' +
            'M' + (cx - 8) + ' ' + (cy + 4) + ' h16 l3 8 h-22 z',
@@ -434,6 +482,7 @@
       dice.classList.remove('hidden');
       $('die1').textContent = v.dice[0];
       $('die2').textContent = v.dice[1];
+      $('dsum').textContent = '= ' + (v.dice[0] + v.dice[1]);
     } else dice.classList.add('hidden');
   }
 
@@ -449,8 +498,7 @@
       var n = p.res[c];
       var picked = App.discardSel.filter(function (x) { return x === c; }).length;
       var d = el('div', 'rstack' + (n ? '' : ' zero'));
-      var chip = el('i', 'rc r-' + c);
-      d.appendChild(chip);
+      d.appendChild(rchip(c));
       d.appendChild(el('span', null, discarding && picked ? (n - picked) + '/' + n : String(n)));
       if (discarding && n > 0) {
         d.classList.add('selectable');
@@ -505,11 +553,48 @@
     var box = $('panel');
     box.innerHTML = '';
     var msg = el('p', 'panelMsg');
-    var acts = el('div', 'acts');
-    box.appendChild(msg); box.appendChild(acts);
+    box.appendChild(msg);
     var p = meOf(v);
     var myTurn = isMyTurn(v);
+    var res = p && p.res ? p.res : { b: 0, l: 0, w: 0, g: 0, o: 0 };
+    var buildable = myTurn && v.phase === 'main' && !v.trade && v.freeRoads === 0 && !(p && p.out);
 
+    /* 건설 비용 카드 — 언제나 보인다. 지금 지을 수 있으면 초록 테두리 */
+    var bar = el('div', 'buildBar');
+    box.appendChild(bar);
+    function afford(cost) {
+      var need = {};
+      cost.forEach(function (c) { need[c] = (need[c] || 0) + 1; });
+      for (var c in need) if (res[c] < need[c]) return false;
+      return true;
+    }
+    function bcard(label, cost, usable, onClick, mode) {
+      var b = el('button', 'bcard');
+      b.appendChild(el('span', 'bname', label));
+      var cs = el('span', 'bcost');
+      cost.forEach(function (c) { cs.appendChild(rchip(c)); });
+      b.appendChild(cs);
+      if (usable) b.classList.add('can');
+      else b.disabled = true;
+      if (mode && App.build === mode) b.classList.add('on');
+      b.onclick = onClick;
+      bar.appendChild(b);
+      return b;
+    }
+    var canRoad = buildable && afford(['b', 'l']) && p.left.road > 0 && v.legal.roads.length > 0;
+    var canSett = buildable && afford(['b', 'l', 'w', 'g']) && p.left.settlement > 0 && v.legal.settlements.length > 0;
+    var canCity = buildable && afford(['g', 'g', 'o', 'o', 'o']) && p.left.city > 0 && v.legal.cities.length > 0;
+    var canDev = buildable && afford(['w', 'g', 'o']) && v.devLeft > 0;
+    function modeToggle(mode) {
+      return function () { App.build = App.build === mode ? null : mode; render(); };
+    }
+    bcard('도로', ['b', 'l'], canRoad, modeToggle('road'), 'road');
+    bcard('마을', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement');
+    bcard('도시', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city');
+    bcard('발전 카드', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); });
+
+    var acts = el('div', 'acts');
+    box.appendChild(acts);
     function btn(label, fn, primary, disabled) {
       var b = el('button', primary ? 'primary' : null, label);
       if (disabled) b.disabled = true;
@@ -517,17 +602,8 @@
       acts.appendChild(b);
       return b;
     }
-    function modeBtn(label, mode, disabled) {
-      var b = btn(label, function () {
-        App.build = App.build === mode ? null : mode;
-        render();
-      }, false, disabled);
-      if (App.build === mode) b.classList.add('on');
-      return b;
-    }
 
     if (v.phase === 'over') { msg.textContent = '판이 끝났습니다.'; return; }
-
     if (p && p.out) { msg.textContent = '판에서 나갔습니다.'; return; }
 
     // 거래 제안이 떠 있으면 최우선으로 보여준다
@@ -548,7 +624,7 @@
     if (v.phase === 'discard') {
       var mine = v.mustDiscard[v.me];
       if (mine) {
-        msg.innerHTML = '7이 나왔습니다. <b>' + mine + '장</b>을 골라 버리세요. (' + App.discardSel.length + '/' + mine + ')';
+        msg.innerHTML = '7이 나왔습니다. 손패에서 <b>' + mine + '장</b>을 골라 버리세요. (' + App.discardSel.length + '/' + mine + ')';
         btn('버리기', function () { act('discard', [App.discardSel.slice()]); App.discardSel = []; }, true, App.discardSel.length !== mine);
       } else {
         var names = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid).name; });
@@ -581,21 +657,13 @@
     if (App.build === 'road') msg.innerHTML = '<b>도로를 놓을 변</b>을 누르세요.';
     else if (App.build === 'settlement') msg.innerHTML = '<b>마을을 놓을 꼭짓점</b>을 누르세요.';
     else if (App.build === 'city') msg.innerHTML = '<b>도시로 올릴 내 마을</b>을 누르세요.';
-    else msg.innerHTML = '짓거나 거래하거나, 차례를 넘기세요.';
+    else msg.innerHTML = '내 차례 — 짓거나 거래하거나, 차례를 넘기세요.';
 
-    var res = p.res;
-    var canRoad = res.b >= 1 && res.l >= 1 && p.left.road > 0 && v.legal.roads.length > 0;
-    var canSett = res.b >= 1 && res.l >= 1 && res.w >= 1 && res.g >= 1 && p.left.settlement > 0 && v.legal.settlements.length > 0;
-    var canCity = res.g >= 2 && res.o >= 3 && p.left.city > 0 && v.legal.cities.length > 0;
-    var canDev = res.w >= 1 && res.g >= 1 && res.o >= 1 && v.devLeft > 0;
-    modeBtn('도로', 'road', !canRoad);
-    modeBtn('마을', 'settlement', !canSett);
-    modeBtn('도시', 'city', !canCity);
-    btn('발전 카드', function () { act('buyDev', []); }, false, !canDev);
     btn('은행 교환', function () { openBankTrade(v, p); }, false, !RES.some(function (c) { return res[c] >= R.tradeRate(p, c); }));
     var others = v.players.filter(function (q) { return q.id !== v.me && !q.out; }).length;
     btn('거래 제안', function () { openTradeModal(v, p); }, false, !others || !RES.some(function (c) { return res[c] > 0; }));
-    btn('차례 넘기기', function () { act('endTurn', []); }, true);
+    var end = btn('차례 넘기기', function () { act('endTurn', []); }, true);
+    end.classList.add('push');
   }
 
   /* ---------------- 거래 ---------------- */
@@ -657,7 +725,7 @@
       box.innerHTML = '';
       RES.forEach(function (c) {
         var row = el('div', 'tRow');
-        row.appendChild(el('i', 'rc r-' + c));
+        row.appendChild(rchip(c));
         var minus = el('button', null, '−');
         var cnt = el('span', 'cnt', String(App[side][c] || 0));
         var plus = el('button', null, '+');
@@ -684,7 +752,7 @@
     list.innerHTML = '';
     options.forEach(function (o) {
       var b = el('button', null, '');
-      if (o.res) b.appendChild(el('i', 'rc r-' + o.res));
+      if (o.res) b.appendChild(rchip(o.res));
       b.appendChild(el('span', null, o.label));
       b.onclick = function () { $('pickModal').classList.add('hidden'); o.fn(); };
       list.appendChild(b);

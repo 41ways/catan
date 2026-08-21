@@ -9,7 +9,7 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=6645584b">
+<link rel="stylesheet" href="style.css?v=301340e9">
 </head>
 <body>
 
@@ -79,7 +79,7 @@
   <header class="top">
     <div id="players" class="players"></div>
     <div class="topRight">
-      <div id="dice" class="dice hidden"><span class="die" id="die1"></span><span class="die" id="die2"></span></div>
+      <div id="dice" class="dice hidden"><span class="die" id="die1"></span><span class="die" id="die2"></span><span class="dsum" id="dsum"></span></div>
       <button id="btnHelp" class="mini">도움말</button>
     </div>
   </header>
@@ -96,6 +96,12 @@
   </footer>
 
   <div id="toast" class="toast"></div>
+
+  <div id="diceOverlay" class="diceOverlay hidden">
+    <div class="bigDice"><div class="bigDie" id="bd1"></div><div class="bigDie" id="bd2"></div></div>
+    <div class="diceSum" id="diceSum"></div>
+    <div class="diceNote" id="diceNote"></div>
+  </div>
 </section>
 
 <!-- 거래 제안 만들기 -->
@@ -144,15 +150,15 @@
       <p>① 주사위 → 나온 숫자 타일 둘레의 마을(1장)·도시(2장)가 자원을 받습니다. ② 거래하고 짓습니다. ③ 차례를 넘깁니다.</p>
       <h4>건설 비용</h4>
       <table class="costT">
-        <tr><td>도로</td><td><i class="rc r-b"></i><i class="rc r-l"></i></td></tr>
-        <tr><td>마을</td><td><i class="rc r-b"></i><i class="rc r-l"></i><i class="rc r-w"></i><i class="rc r-g"></i></td></tr>
-        <tr><td>도시</td><td><i class="rc r-g"></i><i class="rc r-g"></i><i class="rc r-o"></i><i class="rc r-o"></i><i class="rc r-o"></i></td></tr>
-        <tr><td>발전 카드</td><td><i class="rc r-w"></i><i class="rc r-g"></i><i class="rc r-o"></i></td></tr>
+        <tr><td>도로</td><td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i></td></tr>
+        <tr><td>마을</td><td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i></td></tr>
+        <tr><td>도시</td><td><i class="rc r-g">🌾</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i></td></tr>
+        <tr><td>발전 카드</td><td><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i></td></tr>
       </table>
       <h4>규칙 몇 가지</h4>
       <p>· 마을은 내 도로에 이어서, 어느 마을과도 <b>두 변 이상</b> 떨어뜨려 짓습니다.<br>
       · <b>7</b>이 나오면 8장 이상 든 사람은 절반을 버리고, 도둑을 옮겨 한 장을 훔칩니다. 도둑이 앉은 타일은 생산이 멈춥니다.<br>
-      · 은행 교환은 4:1, 항구가 있으면 3:1 또는 그 자원 2:1.<br>
+      · 은행 교환은 4:1, 항구가 있으면 3:1 또는 그 자원 2:1. 항구 배지에서 점선이 닿은 <b>두 꼭짓점</b> 중 하나에 내 마을이 있으면 그 교환비를 씁니다.<br>
       · 발전 카드는 산 다음 턴부터, 한 턴에 한 장. 승점 카드는 예외로 그냥 점수.<br>
       · 도로 5개를 한 줄로 이으면 최장 교역로, 기사 3장을 쓰면 최강 기사단.</p>
     </div>
@@ -179,8 +185,8 @@
     <div class="tstep hidden">
       <h3>다섯 가지 자원</h3>
       <div class="tres">
-        <span><i class="rc r-b"></i>벽돌</span><span><i class="rc r-l"></i>나무</span>
-        <span><i class="rc r-w"></i>양</span><span><i class="rc r-g"></i>밀</span><span><i class="rc r-o"></i>철</span>
+        <span><i class="rc r-b">🧱</i>벽돌</span><span><i class="rc r-l">🪵</i>나무</span>
+        <span><i class="rc r-w">🐑</i>양</span><span><i class="rc r-g">🌾</i>밀</span><span><i class="rc r-o">🪨</i>철</span>
       </div>
       <p>벽돌·나무로 도로를, 거기에 양·밀을 더해 마을을 짓습니다. 도시는 밀 2 · 철 3. 모자라면 은행과 4:1로 바꾸거나 사람과 흥정합니다.</p>
     </div>
@@ -226,6 +232,6 @@
 <script src="rules.js?v=47e21b85"></script>
 <script src="ai.js?v=7542adcb"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=daf97f2f"></script>
+<script src="app.js?v=01ddfaff"></script>
 </body>
 </html>
