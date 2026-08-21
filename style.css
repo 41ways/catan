@@ -167,11 +167,21 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .hex.t-hills { fill: #b06a3f; }
 .hex.t-mountains { fill: #7a8494; }
 .hex.t-desert { fill: #c9b48a; }
+/* 도둑이 앉은 칸 — 빗금으로 확실히 */
+.hex.robbed { filter: saturate(0.45) brightness(0.72); }
+.robHatch { pointer-events: none; }
+.robRing { fill: none; stroke: #14171f; stroke-width: 3; opacity: 0.85; pointer-events: none; }
+
 /* 생산한 칸 — 카드가 나오기 직전에 밝아진다 */
 .hex.lit { animation: hexLit 0.85s ease-in-out infinite alternate; }
 @keyframes hexLit {
   from { filter: brightness(1.06); stroke: var(--gold); stroke-width: 2.5; }
   to   { filter: brightness(1.5) saturate(1.2); stroke: var(--gold); stroke-width: 5; }
+}
+.hex.litRob { animation: hexRob 0.8s ease-in-out infinite alternate; }
+@keyframes hexRob {
+  from { stroke: #c0342b; stroke-width: 3; }
+  to   { stroke: #ff6b52; stroke-width: 6; }
 }
 .hex.robTarget { cursor: pointer; }
 .hex.robTarget:hover { filter: brightness(1.2); }
@@ -224,17 +234,17 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .devchip.fresh { opacity: 0.45; cursor: default; }
 .panel { display: flex; flex-direction: column; gap: 9px; }
 .panelMsg { font-size: 14px; margin: 0; min-height: 21px; }
-.buildRow { display: flex; gap: 7px; flex-wrap: wrap; }
+.buildRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 /* 짓기 버튼 — 이름·점수·재료가 한 몸이다. 모자란 재료는 흐리게 */
 .bcard {
-  display: flex; flex-direction: column; gap: 5px; align-items: stretch;
-  padding: 7px 11px 8px; min-width: 88px;
+  display: flex; flex-direction: column; gap: 5px; align-items: center;
+  padding: 8px 6px; min-width: 0;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 11px;
 }
-.bcard .bhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.bcard .bname { font-size: 13px; font-weight: 700; }
+.bcard .bhead { display: flex; align-items: baseline; gap: 5px; justify-content: center; }
+.bcard .bname { font-size: 13px; font-weight: 700; white-space: nowrap; }
 .bcard .bpts { font-size: 11px; font-weight: 700; color: var(--gold); }
-.bcard .bcost { display: flex; gap: 3px; }
+.bcard .bcost { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
 .bcard .bcost .rc { width: 17px; height: 17px; font-size: 11px; }
 .bcard:disabled { background: transparent; opacity: 1; cursor: default; }
 .bcard:disabled .bname { color: var(--dim); }
@@ -262,7 +272,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 
 .acts { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
-.acts button { font-size: 13.5px; padding: 9px 13px; }
+.acts button { font-size: 13.5px; padding: 9px 15px; }
 .acts button.push { margin-left: auto; }
 .acts button.on { outline: 2px solid var(--gold); }
 

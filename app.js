@@ -100,8 +100,12 @@
       if (App.diceKey !== dk) {
         App.diceKey = dk;
         var gains = (v.lastGain && v.lastGain.length) ? v.lastGain : null;
+        var isSeven = v.dice[0] + v.dice[1] === 7;
         // 주사위가 화면에서 사라진 뒤에 해당 칸이 점등하고, 그 다음 카드가 온다
-        showDiceRoll(v.dice, function () { if (gains) flyGains(gains); });
+        showDiceRoll(v.dice, function () {
+          if (isSeven) litRobber();
+          else if (gains) flyGains(gains);
+        });
       }
     }
     render();
@@ -258,6 +262,20 @@
     var chip = document.querySelector('.pl[data-pid="' + pid + '"]');
     return chip ? chip.getBoundingClientRect() : null;
   }
+  // 7 — 지금 도둑이 앉아 있는 칸을 밝혀서 "여기를 옮긴다"를 보여준다
+  function litRobber() {
+    var v = App.view;
+    if (!v) return;
+    var poly = $('board').querySelector('.hex[data-hex="' + v.robber + '"]');
+    if (poly) {
+      poly.classList.add('litRob');
+      setTimeout(function () { poly.classList.remove('litRob'); }, 2600);
+    }
+    var mine = v.mustDiscard && v.mustDiscard[v.me];
+    if (mine) toast('7 — 먼저 ' + mine + '장을 버립니다.');
+    else if (isMyTurn(v)) toast('7 — 도둑을 옮길 타일을 누르세요.');
+  }
+
   function flyGains(gains) {
     var v = App.view;
     if (!v) return;
@@ -330,6 +348,13 @@
   function renderBoard(v) {
     var svg = $('board');
     svg.innerHTML = '';
+    // 도둑 칸에 덮을 빗금
+    var defs = svgEl('defs', {});
+    var pat = svgEl('pattern', { id: 'hatch', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
+    pat.appendChild(svgEl('rect', { width: 9, height: 9, fill: '#14171f', 'fill-opacity': 0.16 }));
+    pat.appendChild(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: '#14171f', 'stroke-width': 4, 'stroke-opacity': 0.5 }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
     var g = svgEl('g', {});
     svg.appendChild(g);
     var myTurn = isMyTurn(v);
@@ -351,13 +376,21 @@
     // 땅 타일
     v.board.hexes.forEach(function (h) {
       var cx = px(h.X), cy = py(h.Y);
-      var hexEl = svgEl('polygon', { points: hexPoints(cx, cy), class: 'hex t-' + h.terrain, 'data-hex': h.i });
+      var robbedHere = h.i === v.robber;
+      var hexEl = svgEl('polygon', {
+        points: hexPoints(cx, cy),
+        class: 'hex t-' + h.terrain + (robbedHere ? ' robbed' : ''),
+        'data-hex': h.i
+      });
       // 도둑 옮기기 — 내 차례면 타일을 누른다
       if (v.phase === 'robber' && myTurn && h.i !== v.robber) {
         hexEl.classList.add('robTarget');
         hexEl.addEventListener('click', function () { clickRobber(h.i); });
       }
       g.appendChild(hexEl);
+      if (robbedHere) {
+        g.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), fill: 'url(#hatch)', class: 'robHatch' }));
+      }
 
       // 육각형 안을 위아래로 나눠 쓴다 — 위는 자원, 아래는 숫자 칩
       var hasNum = !!h.number;
@@ -398,13 +431,14 @@
       g.appendChild(pt);
     });
 
-    // 도둑
+    // 도둑 — 숫자 칩 왼쪽에 세운다. 칩은 그대로 보인다
     (function () {
       var h = v.board.hexes[v.robber];
-      var cx = px(h.X) - (h.number ? 26 : 0), cy = py(h.Y) + (h.number ? 20 : 8);
+      var cx = px(h.X) + (h.number ? -27 : 0), cy = py(h.Y) + (h.number ? 19 : 10);
+      g.appendChild(svgEl('circle', { cx: cx, cy: cy - 1, r: 14, fill: '#14171f', 'fill-opacity': 0.55, class: 'robHatch' }));
       var path = svgEl('path', {
-        d: 'M' + cx + ' ' + (cy - 12) + ' a7 7 0 0 1 7 7 c0 3 -1.6 4.5 -1.6 7 h-10.8 c0 -2.5 -1.6 -4 -1.6 -7 a7 7 0 0 1 7 -7 z ' +
-           'M' + (cx - 8) + ' ' + (cy + 4) + ' h16 l3 8 h-22 z',
+        d: 'M' + cx + ' ' + (cy - 11) + ' a6.5 6.5 0 0 1 6.5 6.5 c0 2.8 -1.5 4.2 -1.5 6.5 h-10 c0 -2.3 -1.5 -3.7 -1.5 -6.5 a6.5 6.5 0 0 1 6.5 -6.5 z ' +
+           'M' + (cx - 7.5) + ' ' + (cy + 4) + ' h15 l2.8 7.5 h-20.6 z',
         class: 'robber'
       });
       g.appendChild(path);
@@ -729,7 +763,9 @@
     }
 
     if (v.phase === 'robber') {
-      msg.innerHTML = myTurn ? '<b>도둑을 옮길 타일</b>을 누르세요.' : playerIn(v, v.players[v.turn].id).name + '이(가) 도둑을 옮기는 중…';
+      msg.innerHTML = myTurn
+        ? '<b>도둑을 옮길 타일</b>을 누르세요. 지금 자리(빗금)는 고를 수 없습니다.'
+        : playerIn(v, v.players[v.turn].id).name + '이(가) 도둑을 옮기는 중…';
       return;
     }
 
