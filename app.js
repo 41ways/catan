@@ -21,7 +21,7 @@
   };
 
   function show(which) {
-    ['home', 'lobby', 'game'].forEach(function (id) {
+    ['title', 'home', 'lobby', 'game'].forEach(function (id) {
       $(id).classList.toggle('hidden', id !== which);
     });
   }
@@ -639,8 +639,22 @@
       for (var c in need) if (res[c] < need[c]) return false;
       return true;
     }
-    function bbtn(label, usable, onClick, mode) {
-      var b = el('button', null, label);
+    function bbtn(label, pts, cost, usable, onClick, mode) {
+      var b = el('button', 'bcard');
+      var head = el('span', 'bhead');
+      head.appendChild(el('span', 'bname', label));
+      head.appendChild(el('span', 'bpts', pts));
+      b.appendChild(head);
+      var cs = el('span', 'bcost');
+      var have = {};
+      RES.forEach(function (c) { have[c] = res[c]; });
+      cost.forEach(function (c) {
+        var chip = rchip(c);
+        if (have[c] > 0) have[c]--;        // 이 장은 감당된다
+        else chip.classList.add('miss');   // 이 장이 모자라다
+        cs.appendChild(chip);
+      });
+      b.appendChild(cs);
       if (usable) b.classList.add('can');
       else b.disabled = true;
       if (mode && App.build === mode) b.classList.add('on');
@@ -655,10 +669,11 @@
     function modeToggle(mode) {
       return function () { App.build = App.build === mode ? null : mode; render(); };
     }
-    bbtn('도로', canRoad, modeToggle('road'), 'road');
-    bbtn('마을', canSett, modeToggle('settlement'), 'settlement');
-    bbtn('도시', canCity, modeToggle('city'), 'city');
-    bbtn('발전 카드', canDev, function () { act('buyDev', []); });
+    bbtn('도로', '0점', ['b', 'l'], canRoad, modeToggle('road'), 'road');
+    bbtn('마을', '1점', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement');
+    bbtn('도시', '2점', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city');
+    bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); });
+    box.appendChild(el('p', 'panelFoot', '최장 교역로 2점 · 최강 기사단 2점 — 더 잘한 사람이 나오면 넘어갑니다.'));
 
     var acts = el('div', 'acts');
     box.appendChild(acts);
@@ -1021,21 +1036,25 @@
     act('offerTrade', [g, w]);
   };
 
-  // 건설비 가이드 접기 — 한 번 정하면 기억한다
+  $('btnPlay').onclick = function () { show('home'); };
+  $('btnBack').onclick = function () { show('title'); };
+
+  // 테마 — 라이트가 기본, 한 번 고르면 기억한다
+  function applyTheme(dark) {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    $('themeToggle').checked = dark;
+    $('themeLabel').textContent = dark ? '다크' : '라이트';
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#0d1017' : '#f6efe0');
+    try { localStorage.setItem('catan.dark', dark ? '1' : '0'); } catch (e) {}
+    if (App.view) render();
+  }
   (function () {
     var saved = null;
-    try { saved = localStorage.getItem('catan.guide'); } catch (e) {}
-    var open = saved !== null ? saved === '1' : window.innerWidth > 640;
-    $('costGuide').classList.toggle('closed', !open);
-    $('cgChev').textContent = open ? '▾' : '▸';
+    try { saved = localStorage.getItem('catan.dark'); } catch (e) {}
+    applyTheme(saved === '1');
   })();
-  $('cgHead').onclick = function () {
-    var g = $('costGuide');
-    g.classList.toggle('closed');
-    var open = !g.classList.contains('closed');
-    $('cgChev').textContent = open ? '▾' : '▸';
-    try { localStorage.setItem('catan.guide', open ? '1' : '0'); } catch (e) {}
-  };
+  $('themeToggle').onchange = function () { applyTheme($('themeToggle').checked); };
 
   // 처음 온 사람에게는 안내를 먼저 보여준다
   (function () {

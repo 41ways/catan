@@ -9,13 +9,66 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=11f70a2b">
+<link rel="stylesheet" href="style.css?v=8f8951b2">
 </head>
 <body>
 
-<!-- 홈 -->
-<section id="home" class="screen">
+<!-- 타이틀 -->
+<section id="title" class="screen">
+  <label class="tswitch" title="테마 바꾸기">
+    <input type="checkbox" id="themeToggle">
+    <span class="track"><span class="knob"></span></span>
+    <span class="tlabel" id="themeLabel">라이트</span>
+  </label>
+  <div class="twrap">
+    <svg class="isle" viewBox="0 0 260 158" aria-hidden="true">
+      <g stroke="#0b0e14" stroke-width="1.5">
+        <polygon points="107.5,10 130,23 130,49 107.5,62 85,49 85,23" fill="#7a8494"/>
+        <polygon points="152.5,10 175,23 175,49 152.5,62 130,49 130,23" fill="#79a352"/>
+        <polygon points="85,49 107.5,62 107.5,88 85,101 62.5,88 62.5,62" fill="#2e5d3f"/>
+        <polygon points="130,49 152.5,62 152.5,88 130,101 107.5,88 107.5,62" fill="#c9b48a"/>
+        <polygon points="175,49 197.5,62 197.5,88 175,101 152.5,88 152.5,62" fill="#d9a441"/>
+        <polygon points="107.5,88 130,101 130,127 107.5,140 85,127 85,101" fill="#d9a441"/>
+        <polygon points="152.5,88 175,101 175,127 152.5,140 130,127 130,101" fill="#b06a3f"/>
+      </g>
+      <circle cx="175" cy="75" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+      <text x="175" y="79" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">8</text>
+      <circle cx="107.5" cy="36" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+      <text x="107.5" y="40" text-anchor="middle" font-size="10" font-weight="800" fill="#2b2419">5</text>
+      <circle cx="152.5" cy="114" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+      <text x="152.5" y="118" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">6</text>
+      <text x="130" y="80" text-anchor="middle" font-size="13">🌵</text>
+      <text x="152.5" y="40" text-anchor="middle" font-size="12">🐑</text>
+      <text x="85" y="80" text-anchor="middle" font-size="12">🪵</text>
+      <text x="107.5" y="119" text-anchor="middle" font-size="12">🌾</text>
+      <line x1="130" y1="101" x2="152.5" y2="88" stroke="#0b0e14" stroke-width="7" stroke-linecap="round"/>
+      <line x1="130" y1="101" x2="152.5" y2="88" stroke="#d95f4a" stroke-width="4.5" stroke-linecap="round"/>
+      <g transform="translate(130,101)">
+        <rect x="-6" y="-2" width="12" height="9" fill="#d95f4a" stroke="#0b0e14"/>
+        <path d="M-8.5 -1.2 L0 -9 L8.5 -1.2 z" fill="#8f3527" stroke="#0b0e14"/>
+      </g>
+      <g transform="translate(36,116) rotate(-12)">
+        <rect x="-13" y="-13" width="26" height="26" rx="6" fill="#f2ead6" stroke="#0b0e14" stroke-width="1.5"/>
+        <circle cx="-6" cy="-6" r="2.4" fill="#2b2419"/><circle cx="6" cy="-6" r="2.4" fill="#2b2419"/>
+        <circle cx="-6" cy="6" r="2.4" fill="#2b2419"/><circle cx="6" cy="6" r="2.4" fill="#2b2419"/>
+      </g>
+      <g transform="translate(226,124) rotate(14)">
+        <rect x="-13" y="-13" width="26" height="26" rx="6" fill="#f2ead6" stroke="#0b0e14" stroke-width="1.5"/>
+        <circle cx="0" cy="0" r="2.4" fill="#2b2419"/>
+        <circle cx="-6.5" cy="-6.5" r="2.4" fill="#2b2419"/><circle cx="6.5" cy="6.5" r="2.4" fill="#2b2419"/>
+      </g>
+    </svg>
+    <h1 class="logo">카탄</h1>
+    <p class="tagline">자원을 모아 섬을 개척하고, 10점을 먼저 넘기는 사람이 승리.</p>
+    <button id="btnPlay" class="primary big">시작하기</button>
+    <button id="btnRules" class="big ghost2">가이드</button>
+  </div>
+</section>
+
+<!-- 게임 설정 -->
+<section id="home" class="screen hidden">
   <div class="wrap">
+    <button id="btnBack" class="ghost back">‹ 처음으로</button>
     <h1>카탄</h1>
     <p class="tag">주사위가 자원을 나눠주고, 자원으로 마을과 도로를 짓습니다.<br>마을 1점 · 도시 2점 — 자기 차례에 10점을 먼저 넘기면 이깁니다.</p>
 
@@ -55,7 +108,6 @@
       <p class="fine">방장의 브라우저가 심판을 맡습니다. 방장이 나가면 판이 끝납니다.</p>
     </div>
 
-    <button id="btnRules" class="ghost">처음이면 — 어떻게 하는 게임인지 보기</button>
   </div>
 </section>
 
@@ -92,19 +144,7 @@
 
   <footer class="bottom">
     <div id="hand" class="hand"></div>
-    <div class="botRow">
-      <aside class="costGuide" id="costGuide">
-        <button class="cgHead" id="cgHead">건설비 <span id="cgChev">▾</span></button>
-        <div class="cgBody" id="cgBody">
-          <div class="cgRow"><span class="cgName">도로</span><span class="cgChips"><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i></span><span class="cgPts">0점</span></div>
-          <div class="cgRow"><span class="cgName">마을</span><span class="cgChips"><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i></span><span class="cgPts">1점</span></div>
-          <div class="cgRow"><span class="cgName">도시</span><span class="cgChips"><i class="rc r-g">🌾</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i></span><span class="cgPts">2점</span></div>
-          <div class="cgRow"><span class="cgName">발전 카드</span><span class="cgChips"><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i></span><span class="cgPts">?점</span></div>
-          <div class="cgFoot">최장 교역로 2점 · 최강 기사단 2점</div>
-        </div>
-      </aside>
-      <div id="panel" class="panel"></div>
-    </div>
+    <div id="panel" class="panel"></div>
   </footer>
 
   <div id="toast" class="toast"></div>
@@ -244,6 +284,6 @@
 <script src="rules.js?v=5f65ad94"></script>
 <script src="ai.js?v=7542adcb"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=b8d5e003"></script>
+<script src="app.js?v=dab746b2"></script>
 </body>
 </html>
