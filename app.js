@@ -3,15 +3,28 @@
 (function () {
   'use strict';
   var R = window.Rules, AI = window.AI;
+  var CK = window.CK, CKAI = window.CKAI;
+  // 지금 판이 쓰는 엔진과 봇
+  function E() { return App.ext ? CK : R; }
+  function BOT() { return App.ext ? CKAI : AI; }
+  function isExt(v) { return !!(v && v.ext === 'ck'); }
   var $ = function (id) { return document.getElementById(id); };
-  var RES = R.RES, RN = R.RES_NAME;
+  var RES = R.RES;
+  var RN = { b: '벽돌', l: '나무', w: '양', g: '밀', o: '철', c: '옷감', p: '종이', n: '화폐' };
+  // 확장에서는 흙이라 부른다
+  function resName(c) { return App.ext && c === 'b' ? '흙' : RN[c]; }
+  function cardsOf(v) { return isExt(v) ? CK.ALL : RES; }
   var PCOLOR = { red: '#d95f4a', blue: '#5a8fd9', orange: '#e09a3e', white: '#d8dce6' };
-  var EMOJI = { b: '\uD83E\uDDF1', l: '\uD83E\uDEB5', w: '\uD83D\uDC11', g: '\uD83C\uDF3E', o: '\uD83E\uDEA8' };  // 🧱 🪵 🐑 🌾 🪨
+  var EMOJI = {
+    b: '\uD83E\uDDF1', l: '\uD83E\uDEB5', w: '\uD83D\uDC11', g: '\uD83C\uDF3E', o: '\uD83E\uDEA8',
+    c: '\uD83E\uDDF6', p: '\uD83D\uDCDC', n: '\uD83E\uDE99'          // 🧶 옷감 · 📜 종이 · 🪙 화폐
+  };
   function rchip(c) { return el('i', 'rc r-' + c, EMOJI[c]); }
   var S = 52;                                     // 육각형 한 변(px)
   var SVGNS = 'http://www.w3.org/2000/svg';
 
   var App = {
+    ext: false,
     mode: 'solo', me: 'me', net: null, seats: [], state: null, view: null,
     started: false, skill: 1, botTimer: null,
     build: null,               // 'road' | 'settlement' | 'city' — 짓기 모드
@@ -69,9 +82,10 @@
   /* ---------------- 진행 ---------------- */
 
   function startEngine() {
+    App.ext = (App.mode === 'solo' || App.mode === 'host') ? App.wantExt : App.ext;
     if (App.seats.length < 2) { toast('2명 이상이어야 시작할 수 있습니다.'); return; }
     App.started = true;
-    App.state = R.newGame(App.seats.map(function (s) {
+    App.state = E().newGame(App.seats.map(function (s) {
       return { id: s.id, name: s.name, bot: s.bot };
     }), Math.floor(Math.random() * 1e9));
     App.build = null; App.discardSel = [];
@@ -82,9 +96,9 @@
   function pushViews() {
     var s = App.state;
     if (App.mode === 'host' && App.net) {
-      App.net.broadcast(function (pid) { return { t: 'view', view: R.viewFor(s, pid) }; });
+      App.net.broadcast(function (pid) { return { t: 'view', view: E().viewFor(s, pid) }; });
     }
-    applyView(R.viewFor(s, App.me));
+    applyView(E().viewFor(s, App.me));
   }
 
   function applyView(v) {
@@ -121,78 +135,91 @@
     'buyDev', 'playDev', 'bankTrade', 'offerTrade', 'replyTrade', 'acceptTrade', 'cancelTrade', 'endTurn'];
   function doAction(pid, action, args) {
     var s = App.state;
-    if (!s || ALLOWED.indexOf(action) < 0) return;
-    var r = R[action].apply(null, [s, pid].concat(args || []));
+    if (!s) return;
+    var allowed = ['placeSettlement', 'placeRoad', 'roll', 'discard', 'moveRobber',
+      'build', 'buyDev', 'playDev', 'bankTrade', 'offerTrade', 'replyTrade',
+      'acceptTrade', 'cancelTrade', 'endTurn',
+      // 도시와 기사
+      'placeKnight', 'activateKnight', 'upgradeKnight', 'moveKnight', 'chaseRobber',
+      'develop', 'playCard'];
+    if (allowed.indexOf(action) < 0) return;
+    var eng = E();
+    if (typeof eng[action] !== 'function') return;
+    var r = eng[action].apply(null, [s, pid].concat(args || []));
     if (!r.ok) {
       if (pid === App.me) toast(r.error);
       else if (App.net) App.net.toPlayer(pid, { t: 'err', msg: r.error });
       return;
     }
+    App.build = null;
+    App.knightSel = null;
     pushViews();
   }
+
 
   /* ---------------- 봇 ---------------- */
 
   function scheduleBot() {
     if (App.mode === 'client') return;
-    var s = App.state;
+    var s = App.state, eng = E();
     if (!s || s.phase === 'over') return;
     clearTimeout(App.botTimer);
     // 거래 응답이 먼저다
-    var pend = R.tradePending(s).filter(function (pid) { return R.playerOf(s, pid).bot; });
+    var pend = eng.tradePending(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (pend.length) { App.botTimer = setTimeout(function () { botTradeReply(pend[0]); }, 600); return; }
     // 제안이 떠 있는데 응답이 다 모였으면 사람(제안자)의 몫 — 봇은 제안하지 않는다
     if (s.trade) return;
-    var need = R.needsAction(s).filter(function (pid) { return R.playerOf(s, pid).bot; });
+    var need = eng.needsAction(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (!need.length) return;
     var wait = s.phase === 'setup' ? 550 : s.phase === 'roll' ? 650 : 520;
     App.botTimer = setTimeout(function () { botStep(need[0]); }, wait);
   }
 
   function botTradeReply(pid) {
-    var s = App.state;
+    var s = App.state, eng = E();
     if (!s || !s.trade) { scheduleBot(); return; }
-    var v = R.viewFor(s, pid);
-    R.replyTrade(s, pid, AI.replyToTrade(v));
+    eng.replyTrade(s, pid, BOT().replyToTrade(eng.viewFor(s, pid)));
     pushViews();
   }
 
   function botStep(pid) {
-    var s = App.state;
+    var s = App.state, eng = E(), bot = BOT();
     if (!s || s.phase === 'over') return;
-    var p = R.playerOf(s, pid);
+    var p = eng.playerOf(s, pid);
     if (!p || !p.bot) return;
-    var v = R.viewFor(s, pid), r = null;
+    var v = eng.viewFor(s, pid), r = null;
+    var cards = App.ext ? CK.ALL : RES;
 
     if (s.phase === 'setup') {
       if (s.setupSub === 'settlement') {
-        r = R.placeSettlement(s, pid, AI.chooseSetupSettlement(v));
-        if (!r.ok) r = R.placeSettlement(s, pid, R.legalSettlements(s, pid)[0]);
+        r = eng.placeSettlement(s, pid, bot.chooseSetupSettlement(v));
+        if (!r.ok) r = eng.placeSettlement(s, pid, eng.legalSettlements(s, pid)[0]);
       } else {
-        r = R.placeRoad(s, pid, AI.chooseSetupRoad(v));
-        if (!r.ok) r = R.placeRoad(s, pid, R.legalRoads(s, pid)[0]);
+        r = eng.placeRoad(s, pid, bot.chooseSetupRoad(v));
+        if (!r.ok) r = eng.placeRoad(s, pid, eng.legalRoads(s, pid)[0]);
       }
     } else if (s.phase === 'discard') {
-      r = R.discard(s, pid, AI.chooseDiscard(v));
+      var need = s.mustDiscard[pid];
+      r = eng.discard(s, pid, bot.chooseDiscard(v, need));
       if (!r.ok) {
         var pool = [];
-        RES.forEach(function (c) { for (var i = 0; i < p.res[c]; i++) pool.push(c); });
-        r = R.discard(s, pid, pool.slice(0, s.mustDiscard[pid]));
+        cards.forEach(function (c) { for (var i = 0; i < p.res[c]; i++) pool.push(c); });
+        r = eng.discard(s, pid, pool.slice(0, need));
       }
     } else if (s.phase === 'robber') {
-      var rb = AI.chooseRobber(v);
-      var cands = R.robberVictims(s, rb.hex, pid);
-      r = R.moveRobber(s, pid, rb.hex, cands.length ? (rb.victim && cands.indexOf(rb.victim) >= 0 ? rb.victim : cands[0]) : null);
+      var rb = bot.chooseRobber(v);
+      var cands = eng.robberVictims(s, rb.hex, pid);
+      r = eng.moveRobber(s, pid, rb.hex, cands.length ? (rb.victim && cands.indexOf(rb.victim) >= 0 ? rb.victim : cands[0]) : null);
       if (!r.ok) {
-        var hx = (s.robber + 1) % 19, cd = R.robberVictims(s, hx, pid);
-        r = R.moveRobber(s, pid, hx, cd.length ? cd[0] : null);
+        var hx = (s.robber + 1) % 19, cd = eng.robberVictims(s, hx, pid);
+        r = eng.moveRobber(s, pid, hx, cd.length ? cd[0] : null);
       }
     } else {
-      var a = AI.act(v, App.skill);
-      if (a) r = R[a.action].apply(null, [s, pid].concat(a.args));
+      var a = bot.act(v, App.skill);
+      if (a && typeof eng[a.action] === 'function') r = eng[a.action].apply(null, [s, pid].concat(a.args));
       if (!r || !r.ok) {
-        if (s.phase === 'roll') r = R.roll(s, pid);
-        else { if (s.freeRoads > 0) s.freeRoads = 0; r = R.endTurn(s, pid); }
+        if (s.phase === 'roll') r = eng.roll(s, pid);
+        else { if (s.freeRoads > 0) s.freeRoads = 0; r = eng.endTurn(s, pid); }
       }
     }
     if (!r || !r.ok) { toast('봇이 막혔습니다.'); return; }
@@ -459,6 +486,61 @@
       });
     });
 
+    // 기사 말 — 등급과 활동 상태
+    if (isExt(v)) {
+      v.players.forEach(function (q) {
+        (q.knights || []).forEach(function (k) {
+          var vt = v.board.verts[k.v];
+          if (!vt) return;
+          var cx = px(vt.X), cy = py(vt.Y);
+          var col = PCOLOR[q.color] || '#fff';
+          var kg = svgEl('g', { class: 'knight' + (k.active ? ' act' : '') });
+          kg.appendChild(svgEl('circle', { cx: cx, cy: cy, r: 11, fill: col, stroke: '#14171f', 'stroke-width': 1.6 }));
+          // 깃발 — 뾰족한 부분 수가 등급
+          var flag = svgEl('path', {
+            d: 'M' + (cx - 1) + ' ' + (cy - 9) + ' v13',
+            stroke: '#14171f', 'stroke-width': 1.6, fill: 'none'
+          });
+          kg.appendChild(flag);
+          for (var i = 0; i < k.rank; i++) {
+            kg.appendChild(svgEl('path', {
+              d: 'M' + (cx - 1) + ' ' + (cy - 8 + i * 3.6) + ' l6 1.6 l-6 1.6 z',
+              fill: k.active ? '#f5c542' : '#e8e2d4', stroke: '#14171f', 'stroke-width': 0.7
+            }));
+          }
+          if (q.id === v.me && isMyTurn(v) && v.phase === 'main') {
+            kg.setAttribute('class', kg.getAttribute('class') + ' mine');
+            kg.style.cursor = 'pointer';
+            kg.onclick = function () { clickVertex(k.v); };
+          }
+          if (App.knightSel === k.v) {
+            kg.appendChild(svgEl('circle', { cx: cx, cy: cy, r: 15, class: 'knightSel' }));
+          }
+          g.appendChild(kg);
+        });
+      });
+      // 성벽
+      v.board.verts.forEach(function (vt) {
+        if (!vt.wall || !vt.b) return;
+        var col = PCOLOR[(playerIn(v, vt.b.p) || {}).color] || '#fff';
+        g.appendChild(svgEl('path', {
+          d: 'M' + (px(vt.X) - 13) + ' ' + (py(vt.Y) + 9) + ' h26',
+          stroke: col, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'wallMark'
+        }));
+      });
+      // 상인 말
+      if (v.merchant) {
+        var mh = v.board.hexes[v.merchant.hex];
+        if (mh) {
+          var mx = px(mh.X) + 26, my = py(mh.Y) - 20;
+          g.appendChild(svgEl('circle', { cx: mx, cy: my, r: 11, class: 'merchantMark' }));
+          var mt = svgEl('text', { x: mx, y: my + 4, 'font-size': 11, 'text-anchor': 'middle', class: 'chipT' });
+          mt.textContent = '商';
+          g.appendChild(mt);
+        }
+      }
+    }
+
     // 방금 지은 것 — 어디에 놓았는지 눈에 걸리게
     (v.recent || []).forEach(function (r) {
       if (r.p === v.me) return;                          // 내가 지은 건 이미 안다
@@ -592,18 +674,69 @@
 
   function clickVertex(vi) {
     var v = App.view;
+    // 진보카드가 자리를 고르는 중
+    if (App.pickVert) {
+      var pk = App.pickVert;
+      if (pk.list.indexOf(vi) < 0) { toast('고를 수 있는 자리가 아닙니다.'); return; }
+      App.pickVert = null;
+      act('playCard', [pk.kind, [vi]]);
+      return;
+    }
+    // 기사 조작
+    if (isExt(v)) {
+      var p = meOf(v);
+      var mine = (p.knights || []).filter(function (k) { return k.v === vi; })[0];
+      if (App.knightSel !== null && App.knightSel !== undefined) {
+        var from = App.knightSel;
+        App.knightSel = null;
+        act('moveKnight', [from, vi]);
+        return;
+      }
+      if (mine) { openKnightMenu(v, mine); return; }
+      if (App.build === 'knight') {
+        if (v.legal.knightSpots.indexOf(vi) < 0) { toast('내 도로가 닿은 빈 꼭짓점에만 놓을 수 있습니다.'); return; }
+        App.build = null;
+        act('placeKnight', [vi]);
+        return;
+      }
+      if (App.build === 'wall') {
+        App.build = null;
+        act('build', ['wall', vi]);
+        return;
+      }
+    }
     if (v.phase === 'setup') { act('placeSettlement', [vi]); return; }
     if (App.build === 'settlement') { act('build', ['settlement', vi]); App.build = null; return; }
     if (App.build === 'city') { act('build', ['city', vi]); App.build = null; return; }
   }
   function clickEdge(ei) {
     var v = App.view;
+    if (App.pickEdge) {
+      App.pickEdge = null;
+      act('playCard', ['diplomat', [ei]]);
+      return;
+    }
     if (v.phase === 'setup') { act('placeRoad', [ei]); return; }
     // 공짜 도로가 남아 있으면 계속 놓는다. 아니면 한 번 짓고 모드를 푼다.
     if (v.freeRoads <= 1) App.build = null;
     act('build', ['road', ei]);
   }
   function clickRobber(hex) {
+    if (App.pickHex) {
+      var pk = App.pickHex;
+      if (pk.kind === 'inventor') {
+        if (pk.list.indexOf(hex) < 0) { toast('2 · 12 · 6 · 8 은 바꿀 수 없습니다.'); return; }
+        if (pk.first === null) { pk.first = hex; toast('바꿀 다른 칩을 누르세요.'); render(); return; }
+        if (pk.first === hex) { toast('다른 칩을 골라 주세요.'); return; }
+        var a = pk.first;
+        App.pickHex = null;
+        act('playCard', ['inventor', [a, hex]]);
+        return;
+      }
+      App.pickHex = null;
+      act('playCard', [pk.kind, [hex]]);
+      return;
+    }
     var v = App.view;
     // 피해자 후보 — 공개 정보(카드 수)로 판단할 수 있다
     var owners = {};
@@ -640,15 +773,22 @@
       cardIc.appendChild(document.createTextNode(String(p.cards)));
       cardIc.title = '자원 카드';
       d.appendChild(cardIc);
-      if (p.devCount) { var dv = el('span', 'st', '⚙' + p.devCount); dv.title = '발전 카드'; d.appendChild(dv); }
-      if (p.knights) { var kn = el('span', 'st', '⚔' + p.knights); kn.title = '쓴 기사'; d.appendChild(kn); }
+      if (!isExt(v) && p.devCount) { var dv = el('span', 'st', '⚙' + p.devCount); dv.title = '발전 카드'; d.appendChild(dv); }
+      if (isExt(v) && p.cardCount) { var pc = el('span', 'st', '📜' + p.cardCount); pc.title = '진보카드'; d.appendChild(pc); }
+      if (!isExt(v) && p.knights) { var kn = el('span', 'st', '⚔' + p.knights); kn.title = '쓴 기사'; d.appendChild(kn); }
       // 남은 말 — 도로 / 마을 / 도시
       var left = el('span', 'left');
       left.title = '남은 말 — 도로 ' + p.left.road + ' · 마을 ' + p.left.settlement + ' · 도시 ' + p.left.city;
       left.textContent = p.left.road + '/' + p.left.settlement + '/' + p.left.city;
       d.appendChild(left);
       if (v.longest.p === p.id) d.appendChild(el('span', 'badge', '교역로'));
-      if (v.army.p === p.id) d.appendChild(el('span', 'badge', '기사단'));
+      if (!isExt(v) && v.army && v.army.p === p.id) d.appendChild(el('span', 'badge', '기사단'));
+      if (isExt(v)) {
+        var mm = 0;
+        CK.TRACKS.forEach(function (t) { if (p.metro[t]) mm++; });
+        if (mm) d.appendChild(el('span', 'badge', '수도' + (mm > 1 ? ' ' + mm : '')));
+        if (p.power) d.appendChild(el('span', 'st', '⚔' + p.power));
+      }
       box.appendChild(d);
     });
     var dice = $('dice');
@@ -668,13 +808,13 @@
     var p = meOf(v);
     if (!p || p.res === undefined) return;
     var discarding = v.phase === 'discard' && v.mustDiscard[v.me];
-    RES.forEach(function (c) {
-      var n = p.res[c];
+    cardsOf(v).forEach(function (c) {
+      var n = p.res[c] || 0;
       var picked = App.discardSel.filter(function (x) { return x === c; }).length;
-      var d = el('div', 'rstack' + (n ? '' : ' zero'));
+      var d = el('div', 'rstack' + (n ? '' : ' zero') + (isExt(v) && CK.COM.indexOf(c) >= 0 ? ' com' : ''));
       d.dataset.res = c;
       d.appendChild(rchip(c));
-      d.appendChild(el('span', 'rname', RN[c]));
+      d.appendChild(el('span', 'rname', resName(c)));
       d.appendChild(el('span', 'rnum', discarding && picked ? (n - picked) + '/' + n : String(n)));
       if (discarding && n > 0) {
         d.classList.add('selectable');
@@ -688,11 +828,25 @@
           render();
         };
       }
-      d.title = RN[c];
+      d.title = resName(c);
       box.appendChild(d);
     });
+
+    if (isExt(v)) {
+      // 진보카드 — 넉 장까지
+      (p.cardList || []).forEach(function (c) {
+        var b = el('button', 'devchip trk-' + c.track, CK.CARD_NAME[c.type]);
+        b.title = CK.TRACK_NAME[c.track] + ' 진보카드';
+        b.onclick = function () { playProgressUI(c.type); };
+        box.appendChild(b);
+      });
+      if (p.vpCards) box.appendChild(el('span', 'devchip vp', '승점 ' + p.vpCards));
+      if (p.defender) box.appendChild(el('span', 'devchip vp', '수호자 ' + p.defender));
+      return;
+    }
+
     // 발전 카드
-    (p.dev || []).forEach(function (d, i) {
+    (p.dev || []).forEach(function (d) {
       var b = el('button', 'devchip' + (d.fresh ? ' fresh' : ''), R.DEV_NAME[d.type]);
       if (d.type === 'vp') { b.classList.remove('fresh'); b.title = '승점 1점 — 그냥 점수로 들어갑니다'; b.onclick = function () { toast('승점 카드는 쓰는 카드가 아닙니다. 점수에 이미 들어가 있습니다.'); }; }
       else if (d.fresh) { b.title = '산 턴에는 못 씁니다'; b.onclick = function () { toast('산 턴에는 쓸 수 없습니다.'); }; }
@@ -701,6 +855,7 @@
     });
   }
 
+
   function playDevUI(type) {
     var v = App.view;
     if (!isMyTurn(v)) { toast('내 차례에만 쓸 수 있습니다.'); return; }
@@ -708,21 +863,244 @@
     if (type === 'knight' || type === 'road') { act('playDev', [type, []]); return; }
     if (type === 'monopoly') {
       openPick('독점 — 어떤 자원을 거둘까요?', '모든 사람의 그 자원을 전부 가져옵니다.', RES.map(function (c) {
-        return { label: RN[c], res: c, fn: function () { act('playDev', ['monopoly', [c]]); } };
+        return { label: resName(c), res: c, fn: function () { act('playDev', ['monopoly', [c]]); } };
       }));
       return;
     }
     if (type === 'plenty') {
       var first = null;
       openPick('자원 발견 — 첫 장', '은행에서 두 장을 가져옵니다.', RES.map(function (c) {
-        return { label: RN[c], res: c, fn: function () {
+        return { label: resName(c), res: c, fn: function () {
           first = c;
           openPick('자원 발견 — 둘째 장', '', RES.map(function (c2) {
-            return { label: RN[c2], res: c2, fn: function () { act('playDev', ['plenty', [first, c2]]); } };
+            return { label: resName(c2), res: c2, fn: function () { act('playDev', ['plenty', [first, c2]]); } };
           }));
         } };
       }));
     }
+  }
+
+  /* ---------------- 도시와 기사 — 전용 화면 ---------------- */
+
+  // 내 기사를 누르면 할 수 있는 일을 보여준다
+  function openKnightMenu(v, k) {
+    var p = meOf(v);
+    var opts = [];
+    var rankName = k.rank === 1 ? '하급' : k.rank === 2 ? '중급' : '상급';
+    if (!k.active) {
+      opts.push({ label: '활동 상태로 (밀 1)', res: 'g', fn: function () { act('activateKnight', [k.v]); } });
+    }
+    if (k.rank < 3) {
+      var canUp = k.rank === 1 || p.level.politics >= 3;
+      opts.push({
+        label: '승급 (철 1 · 양 1)' + (canUp ? '' : ' — 요새 필요'),
+        fn: function () {
+          if (!canUp) { toast('상급으로 올리려면 정치 3단계(요새)가 필요합니다.'); return; }
+          act('upgradeKnight', [k.v]);
+        }
+      });
+    }
+    if (k.canAct) {
+      opts.push({ label: '이동 / 추방', fn: function () {
+        App.knightSel = k.v;
+        toast('갈 자리나 밀어낼 상대 기사를 누르세요.');
+        render();
+      } });
+      if (v.board.verts[k.v].hexes.indexOf(v.robber) >= 0) {
+        opts.push({ label: '도둑 쫓아내기', fn: function () { act('chaseRobber', [k.v]); } });
+      }
+    }
+    if (!opts.length) { toast(rankName + ' 기사 — 이번 차례에는 할 수 있는 일이 없습니다.'); return; }
+    openPick(rankName + ' 기사', k.active ? '활동 상태' : '비활동 상태', opts);
+  }
+
+
+
+  // 진보카드 사용 — 고를 게 있으면 창을 띄운다
+  function playProgressUI(type) {
+    var v = App.view, p = meOf(v);
+    var opp = v.players.filter(function (q) { return q.id !== v.me && !q.out; });
+    function go(args) { act('playCard', [type, args || []]); }
+
+    if (type === 'alchemist') {
+      if (v.phase !== 'roll') { toast('연금술사는 주사위를 굴리기 전에만 씁니다.'); return; }
+      var faces = [1, 2, 3, 4, 5, 6];
+      openPick('연금술사 — 흰 주사위', '이번에 나올 눈을 고릅니다.', faces.map(function (a) {
+        return { label: String(a), fn: function () {
+          openPick('연금술사 — 빨간 주사위', '빨간 눈도 고릅니다. (진보카드 조건에 쓰입니다)', faces.map(function (b) {
+            return { label: String(b), fn: function () { go([a, b]); } };
+          }));
+        } };
+      }));
+      return;
+    }
+    if (type === 'resMono') {
+      openPick('자원 독점', '고른 자원을 모두에게서 두 장씩 가져옵니다.', CK.RES.map(function (c) {
+        return { label: resName(c), res: c, fn: function () { go([c]); } };
+      }));
+      return;
+    }
+    if (type === 'commMono') {
+      openPick('상품 독점', '고른 상품을 모두에게서 한 장씩 가져옵니다.', CK.COM.map(function (c) {
+        return { label: resName(c), res: c, fn: function () { go([c]); } };
+      }));
+      return;
+    }
+    if (type === 'fleet') {
+      openPick('상선대', '이번 차례에 2:1로 바꿀 것을 고릅니다.', CK.ALL.map(function (c) {
+        return { label: resName(c), res: c, fn: function () { go([c]); } };
+      }));
+      return;
+    }
+    if (type === 'spy' || type === 'deserter' || type === 'trader') {
+      var title = type === 'spy' ? '첩자 — 진보카드를 가져올 상대'
+        : type === 'deserter' ? '변절자 — 기사를 데려올 상대' : '전문 상인 — 손을 볼 상대';
+      var list = opp;
+      if (type === 'trader') list = opp.filter(function (q) { return q.vp > p.vp; });
+      if (!list.length) { toast(type === 'trader' ? '나보다 점수가 높은 사람이 없습니다.' : '고를 상대가 없습니다.'); return; }
+      openPick(title, '', list.map(function (q) {
+        return { label: q.name, fn: function () {
+          if (type !== 'trader') { go([q.id]); return; }
+          // 전문 상인은 두 장을 고른다 — 상대 손은 안 보이므로 종류만 지정
+          openPick('전문 상인 — 무엇을 가져올까요', q.name + '에게서 두 장을 가져옵니다.', CK.ALL.map(function (c) {
+            return { label: resName(c) + ' 두 장', res: c, fn: function () { go([q.id, [c, c]]); } };
+          }));
+        } };
+      }));
+      return;
+    }
+    if (type === 'medicine') {
+      if (!v.legal.cities.length) { toast('올릴 마을이 없습니다.'); return; }
+      App.pickVert = { kind: 'medicine', list: v.legal.cities };
+      toast('도시로 올릴 내 마을을 판에서 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'engineer') {
+      if (!v.legal.walls.length) { toast('성벽을 쌓을 도시가 없습니다.'); return; }
+      App.pickVert = { kind: 'engineer', list: v.legal.walls };
+      toast('성벽을 쌓을 도시를 판에서 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'bishop' || type === 'merchant') {
+      App.pickHex = { kind: type };
+      toast(type === 'bishop' ? '도둑을 옮길 타일을 누르세요.' : '상인을 놓을 내 땅을 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'intrigue') {
+      var spots = [];
+      v.players.forEach(function (q) {
+        if (q.id === v.me) return;
+        (q.knights || []).forEach(function (k) { spots.push(k.v); });
+      });
+      if (!spots.length) { toast('밀어낼 상대 기사가 없습니다.'); return; }
+      App.pickVert = { kind: 'intrigue', list: spots };
+      toast('밀어낼 상대 기사를 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'inventor') {
+      var ok = [];
+      v.board.hexes.forEach(function (h, i) {
+        if (h.number && [2, 12, 6, 8].indexOf(h.number) < 0) ok.push(i);
+      });
+      if (ok.length < 2) { toast('바꿀 수 있는 숫자 칩이 없습니다.'); return; }
+      App.pickHex = { kind: 'inventor', list: ok, first: null };
+      toast('자리를 바꿀 숫자 칩 두 개를 차례로 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'diplomat') {
+      App.pickEdge = { kind: 'diplomat' };
+      toast('없앨 도로(맨 끝)를 누르세요.');
+      render();
+      return;
+    }
+    if (type === 'smith') {
+      var ks = (p.knights || []).filter(function (k) { return k.rank < 3; }).map(function (k) { return k.v; });
+      if (!ks.length) { toast('승급시킬 기사가 없습니다.'); return; }
+      go([ks.slice(0, 2)]);
+      return;
+    }
+    if (type === 'harbor') {
+      // 각 상대에게 자원 하나를 주고 상품 하나를 받는다 — 간단히 한 명씩 고른다
+      if (!opp.length) { toast('상대가 없습니다.'); return; }
+      var mine = CK.RES.filter(function (c) { return p.res[c] > 0; });
+      if (!mine.length) { toast('줄 자원이 없습니다.'); return; }
+      openPick('무역항 — 내가 줄 자원', '상대마다 자원 1장을 주고 상품 1장을 받습니다.', mine.map(function (giveC) {
+        return { label: resName(giveC), res: giveC, fn: function () {
+          openPick('무역항 — 받을 상품', '', CK.COM.map(function (wantC) {
+            return { label: resName(wantC), res: wantC, fn: function () {
+              var picks = {};
+              opp.forEach(function (q) { picks[q.id] = [giveC, wantC]; });
+              go([picks]);
+            } };
+          }));
+        } };
+      }));
+      return;
+    }
+    go([]);                                              // 고를 게 없는 카드
+  }
+
+  // 야만족 트랙과 도시 개발판
+  function renderCkBar(v) {
+    var bar = $('ckBar');
+    if (!isExt(v)) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    var track = $('barbTrack');
+    track.innerHTML = '';
+    for (var i = 0; i < v.barbMax; i++) {
+      var dot = el('i', i < v.barb ? 'on' : null);
+      track.appendChild(dot);
+    }
+    var cityTotal = 0, power = 0;
+    v.players.forEach(function (q) {
+      if (q.out) return;
+      cityTotal += q.cities.length;
+      power += q.power;
+    });
+    $('barbInfo').textContent = '힘 ' + cityTotal + ' vs 기사 ' + power +
+      (v.barb >= v.barbMax - 1 ? ' — 곧 상륙!' : '');
+    $('barbInfo').className = 'barbInfo' + (power < cityTotal ? ' danger' : '');
+
+    var box = $('ckTracks');
+    box.innerHTML = '';
+    var p = meOf(v);
+    CK.TRACKS.forEach(function (t) {
+      var row = el('div', 'trk trk-' + t);
+      var head = el('span', 'trkName', CK.TRACK_NAME[t]);
+      head.appendChild(rchip(CK.TRACK_COM[t]));
+      row.appendChild(head);
+      var lv = p ? p.level[t] : 0;
+      var pips = el('span', 'trkPips');
+      for (var i2 = 1; i2 <= CK.MAX_LEVEL; i2++) {
+        var pip = el('i', i2 <= lv ? 'on' : null);
+        pip.title = i2 + '단계 — ' + CK.LEVEL_NAME[t][i2 - 1];
+        pips.appendChild(pip);
+      }
+      row.appendChild(pips);
+      if (p && p.metro[t]) row.appendChild(el('span', 'metro', '수도'));
+      // 개발 버튼
+      var can = p && isMyTurn(v) && v.phase === 'main' && lv < CK.MAX_LEVEL;
+      var cost = lv + 1;
+      var b = el('button', 'trkBtn', lv < CK.MAX_LEVEL ? ('개발 ' + cost) : '완료');
+      if (can && p.res[CK.TRACK_COM[t]] >= cost) {
+        b.classList.add('can');
+        b.onclick = function () { act('develop', [t, false]); };
+      } else {
+        b.disabled = lv >= CK.MAX_LEVEL;
+        b.onclick = function () {
+          if (lv >= CK.MAX_LEVEL) return;
+          if (!isMyTurn(v) || v.phase !== 'main') { toast('내 차례에 지을 수 있습니다.'); return; }
+          toast(resName(CK.TRACK_COM[t]) + ' ' + cost + '장이 필요합니다. (지금 ' + p.res[CK.TRACK_COM[t]] + '장)');
+        };
+      }
+      row.appendChild(b);
+      box.appendChild(row);
+    });
   }
 
   function renderPanel(v) {
@@ -736,7 +1114,7 @@
     var buildable = myTurn && v.phase === 'main' && !v.trade && v.freeRoads === 0 && !(p && p.out);
 
     /* 짓기 블록 — 항상 자리를 지키고, 될 때만 켜진다 */
-    var buildRow = el('div', 'buildRow');
+    var buildRow = el('div', 'buildRow' + (isExt(v) ? ' five' : ''));
     box.appendChild(buildRow);
     function afford(cost) {
       var need = {};
@@ -770,6 +1148,23 @@
       buildRow.appendChild(b);
       return b;
     }
+    function whyKnight(v2, p2) {
+      if (!myTurn) return '내 차례에만 놓을 수 있습니다.';
+      if (v2.phase === 'roll') return '먼저 주사위를 굴리세요.';
+      var n = 0;
+      (p2.knights || []).forEach(function (k) { if (k.rank === 1) n++; });
+      if (n >= 2) return '하급 기사는 둘까지입니다. 하나를 승급시키면 더 놓을 수 있습니다.';
+      if (!v2.legal.knightSpots.length) return '내 도로가 닿은 빈 꼭짓점이 없습니다. 도로를 더 이어 보세요.';
+      return '자원이 모자랍니다 — 철 1 · 양 1이 필요합니다.';
+    }
+    function whyWall(v2, p2) {
+      if (!myTurn) return '내 차례에만 쌓을 수 있습니다.';
+      if (v2.phase === 'roll') return '먼저 주사위를 굴리세요.';
+      if (p2.walls >= CK.WALL_MAX) return '성벽은 3개까지입니다.';
+      if (!v2.legal.walls.length) return '성벽을 쌓을 도시가 없습니다. (마을에는 못 쌓습니다)';
+      return '자원이 모자랍니다 — 흙 2장이 필요합니다.';
+    }
+
     // 왜 못 짓는지 한 줄로
     function why(kind) {
       if (!myTurn) return '내 차례에만 지을 수 있습니다.';
@@ -812,8 +1207,30 @@
     bbtn('도로', '0점', ['b', 'l'], canRoad, modeToggle('road'), 'road', why('road'));
     bbtn('마을', '1점', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement', why('settlement'));
     bbtn('도시', '2점', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city', why('city'));
-    bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); }, null, why('dev'));
-    box.appendChild(el('p', 'panelFoot', '최장 교역로 2점 · 최강 기사단 2점 — 더 잘한 사람이 나오면 넘어갑니다.'));
+    if (isExt(v)) {
+      var canKnight = buildable && afford(['o', 'w']) && v.legal.knightSpots.length &&
+        (function () {
+          var n = 0;
+          (p.knights || []).forEach(function (k) { if (k.rank === 1) n++; });
+          return n < 2;
+        })();
+      var canWall = buildable && afford(['b', 'b']) && v.legal.walls.length && p.walls < CK.WALL_MAX;
+      bbtn('기사', '방어', ['o', 'w'], canKnight, function () {
+        App.build = App.build === 'knight' ? null : 'knight';
+        toast('기사를 놓을 자리를 판에서 누르세요.');
+        render();
+      }, 'knight', whyKnight(v, p));
+      bbtn('성벽', '손패+2', ['b', 'b'], canWall, function () {
+        App.build = App.build === 'wall' ? null : 'wall';
+        toast('성벽을 쌓을 내 도시를 누르세요.');
+        render();
+      }, 'wall', whyWall(v, p));
+    } else {
+      bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); }, null, why('dev'));
+    }
+    box.appendChild(el('p', 'panelFoot', isExt(v)
+      ? '수도 2점 · 최장 교역로 2점 · 야만족을 막아내면 수호자 1점. 13점을 먼저 넘기면 이깁니다.'
+      : '최장 교역로 2점 · 최강 기사단 2점 — 더 잘한 사람이 나오면 넘어갑니다.'));
 
     var acts = el('div', 'acts');
     box.appendChild(acts);
@@ -833,9 +1250,11 @@
 
     if (v.phase === 'setup') {
       if (myTurn) {
+        var second = v.setup.idx >= v.players.length;
+        var what = (isExt(v) && second) ? '도시' : '마을';
         msg.innerHTML = v.setup.sub === 'settlement'
-          ? '<b>마을을 놓을 자리</b>를 판에서 누르세요.' + (v.setup.idx >= v.players.length ? ' 이번 마을 둘레의 자원을 받습니다.' : '')
-          : '방금 놓은 마을에 <b>이을 도로</b>를 누르세요.';
+          ? '<b>' + what + '을(를) 놓을 자리</b>를 판에서 누르세요.' + (second ? ' 이번 ' + what + ' 둘레의 자원을 받습니다.' : '')
+          : '방금 놓은 ' + what + '에 <b>이을 도로</b>를 누르세요.';
       } else {
         var who = playerIn(v, v.setup.who);
         msg.textContent = (who ? who.name : '?') + '이(가) 자리를 고르는 중…';
@@ -886,7 +1305,13 @@
     if (App.build === 'road') msg.innerHTML = '<b>도로를 놓을 변</b>을 누르세요.';
     else if (App.build === 'settlement') msg.innerHTML = '<b>마을을 놓을 꼭짓점</b>을 누르세요.';
     else if (App.build === 'city') msg.innerHTML = '<b>도시로 올릴 내 마을</b>을 누르세요.';
-    else msg.innerHTML = '내 차례 — 짓거나 거래하거나, 차례를 넘기세요.';
+    else if (App.build === 'knight') msg.innerHTML = '<b>기사를 놓을 꼭짓점</b>을 누르세요.';
+    else if (App.build === 'wall') msg.innerHTML = '<b>성벽을 쌓을 내 도시</b>를 누르세요.';
+    else if (App.knightSel !== null && App.knightSel !== undefined) msg.innerHTML = '<b>기사가 갈 자리</b>나 밀어낼 상대 기사를 누르세요.';
+    else if (App.pickVert || App.pickHex || App.pickEdge) msg.innerHTML = '<b>진보카드</b> — 판에서 대상을 고르세요.';
+    else msg.innerHTML = isExt(v)
+      ? '내 차례 — 짓거나 거래하거나, 도시를 개발하세요.'
+      : '내 차례 — 짓거나 거래하거나, 차례를 넘기세요.';
 
     btn('은행 교환', function () { openBankTrade(v, p); }, false, !RES.some(function (c) { return res[c] >= R.tradeRate(p, c); }));
     var others = v.players.filter(function (q) { return q.id !== v.me && !q.out; }).length;
@@ -935,9 +1360,9 @@
       if (p.res[c] >= rate) opts.push({ c: c, rate: rate });
     });
     openPick('은행 교환 — 무엇을 낼까요?', '항구가 있으면 교환비가 좋아집니다.', opts.map(function (o) {
-      return { label: RN[o.c] + ' ' + o.rate + '장 내기', res: o.c, fn: function () {
+      return { label: resName(o.c) + ' ' + o.rate + '장 내기', res: o.c, fn: function () {
         openPick('무엇을 받을까요?', '', RES.filter(function (c) { return c !== o.c && v.bank[c] > 0; }).map(function (c) {
-          return { label: RN[c] + ' 1장 (은행에 ' + v.bank[c] + ')', res: c, fn: function () { act('bankTrade', [o.c, c]); } };
+          return { label: resName(c) + ' 1장 (은행에 ' + v.bank[c] + ')', res: c, fn: function () { act('bankTrade', [o.c, c]); } };
         }));
       } };
     }));
@@ -1001,6 +1426,8 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  function winTarget(v) { return isExt(v) ? CK.WIN_VP : R.WIN_VP; }
+
   function showOver(v) {
     var w = v.winner ? playerIn(v, v.winner) : null;
     $('overTitle').textContent = w ? w.name + ' 승리!' : '판이 끝났습니다';
@@ -1013,7 +1440,7 @@
       line.textContent = p.name + ' — ' + (p.vpFull !== undefined ? p.vpFull : p.vp) + '점' +
         (p.vpCards ? ' (승점 카드 ' + p.vpCards + ')' : '') +
         (v.longest.p === p.id ? ' · 최장 교역로' : '') +
-        (v.army.p === p.id ? ' · 최강 기사단' : '') +
+        (!isExt(v) && v.army && v.army.p === p.id ? ' · 최강 기사단' : '') +
         (p.out ? ' · 나감' : '');
       body.appendChild(line);
     });
@@ -1021,6 +1448,7 @@
   }
 
   function render() {
+    if (App.view) renderCkBar(App.view);
     var v = App.view;
     if (!v) return;
     renderBoard(v);
@@ -1105,6 +1533,7 @@
       if (msg.t === 'lobby') renderSeats(msg.seats, false);
       else if (msg.t === 'view') {
         App.me = msg.view.me;
+        App.ext = msg.view.ext === 'ck';
         if ($('game').classList.contains('hidden')) show('game');
         applyView(msg.view);
       } else if (msg.t === 'err') toast(msg.msg);
@@ -1131,6 +1560,21 @@
   }
 
   /* ---------------- 버튼 ---------------- */
+
+  $('mode').onchange = function () {
+    var ck = $('mode').value === 'ck';
+    App.wantExt = ck;
+    $('modeNote').textContent = ck
+      ? '상품·기사·야만족이 더해진 확장. 도시를 개발해 수도를 세우고 13점을 먼저 넘기면 이깁니다.'
+      : '주사위로 자원을 모아 도로·마을·도시를 짓습니다. 처음이면 여기부터.';
+    try { localStorage.setItem('catan.mode', ck ? 'ck' : 'base'); } catch (e) {}
+  };
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('catan.mode'); } catch (e) {}
+    if (saved === 'ck') { $('mode').value = 'ck'; }
+    $('mode').onchange();
+  })();
 
   $('btnSolo').onclick = function () {
     var count = parseInt($('soloCount').value, 10);

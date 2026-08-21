@@ -137,7 +137,7 @@
       setupIdx: 0, setupSub: 'settlement', setupSpot: null,
       robber: 0, robberBack: 'main', merchant: null,
       mustDiscard: {}, freeRoads: 0,
-      barb: 0, barbResult: null,
+      barb: 0, barbResult: null, barbEverLanded: false, robberSleeping: false,
       playedCardThisTurn: false, boughtCards: [],
       knightActed: {},                                // 이번 차례에 행동한 기사
       trade: null,
@@ -528,6 +528,7 @@
     return n;
   }
   function barbarianAttack(s) {
+    s.barbEverLanded = true;                             // 한 번이라도 닿으면 도둑이 깨어난다
     var cityCount = 0;
     s.players.forEach(function (p) { if (!p.out) cityCount += p.cities.length; });
     var powers = {}, defTotal = 0;
@@ -609,11 +610,8 @@
   function startRobber(s, back) {
     s.robberBack = back;
     s.mustDiscard = {};
-    if (s.barb === 0 && !s.barbEverLanded) {
-      say(s, null, '7 — 야만족이 아직 상륙한 적이 없어 도둑은 움직이지 않습니다.');
-      s.phase = back;
-      return;
-    }
+    // 야만족이 한 번도 닿지 않았으면 도둑은 사막에 머문다. 버리기는 그대로 한다.
+    var sleeping = !s.barbEverLanded;
     s.players.forEach(function (p) {
       if (p.out) return;
       var n = handCount(p);
@@ -624,11 +622,18 @@
     });
     if (names.length) {
       s.phase = 'discard';
-      say(s, null, '7 — 절반 버리기: ' + names.join(', '));
-    } else {
-      s.phase = 'robber';
-      say(s, null, '7 — 도둑을 옮깁니다.');
+      s.robberSleeping = sleeping;
+      say(s, null, '7 — 절반 버리기: ' + names.join(', ') +
+        (sleeping ? ' (야만족이 아직 안 왔으니 도둑은 그대로)' : ''));
+      return;
     }
+    if (sleeping) {
+      say(s, null, '7 — 야만족이 아직 상륙한 적이 없어 도둑은 움직이지 않습니다.');
+      s.phase = back;
+      return;
+    }
+    s.phase = 'robber';
+    say(s, null, '7 — 도둑을 옮깁니다.');
   }
 
   function discard(s, pid, list) {
@@ -647,7 +652,11 @@
     say(s, null, p.name + ' 버림 — ' + handText(tmp));
     if (!Object.keys(s.mustDiscard).length) {
       if (s.saboteurBack) { s.phase = s.saboteurBack; s.saboteurBack = null; }
-      else {
+      else if (s.robberSleeping) {
+        s.robberSleeping = false;
+        s.phase = s.robberBack;
+        say(s, null, '야만족이 아직 상륙한 적이 없어 도둑은 그대로 있습니다.');
+      } else {
         s.phase = 'robber';
         say(s, null, current(s).name + ' 차례 — 도둑을 옮깁니다.');
       }
@@ -952,6 +961,7 @@
     if (k.activatedTurn === s.turnCount) return err('이번 차례에 활동 상태가 된 기사는 아직 행동할 수 없습니다.');
     if (k.actedTurn === s.turnCount) return err('이 기사는 이번 차례에 이미 행동했습니다.');
     if (s.board.verts[from].hexes.indexOf(s.robber) < 0) return err('도둑이 있는 땅에 닿은 기사만 쫓을 수 있습니다.');
+    if (!s.barbEverLanded) return err('야만족이 한 번도 상륙하지 않아 아직 도둑을 쫓을 수 없습니다.');
     k.active = false; k.actedTurn = s.turnCount;
     s.robberBack = 'main';
     s.phase = 'robber';
@@ -1527,6 +1537,86 @@
   }
 
 
+
+  /* ---------------- 시야 ---------------- */
+
+  function viewFor(s, pid) {
+    var mePlayer = playerOf(s, pid);
+    var isMine = !!mePlayer && !mePlayer.out;
+    return {
+      ext: 'ck',
+      me: pid,
+      phase: s.phase, turn: s.turn, dice: s.dice, event: s.event, robber: s.robber,
+      turnCount: s.turnCount, winner: s.winner,
+      barb: s.barb, barbMax: BARB_TRACK, barbResult: s.barbResult || null,
+      bank: JSON.parse(JSON.stringify(s.bank)),
+      progressLeft: { trade: s.progress.trade.length, politics: s.progress.politics.length, science: s.progress.science.length },
+      freeRoads: s.freeRoads,
+      merchant: s.merchant ? JSON.parse(JSON.stringify(s.merchant)) : null,
+      setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
+      mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
+      trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,
+      longest: JSON.parse(JSON.stringify(s.longest)),
+      lastGain: s.lastGain ? JSON.parse(JSON.stringify(s.lastGain)) : null,
+      recent: (s.recent || []).filter(function (r) { return r.turn >= s.turnCount - 1; }),
+      board: {
+        hexes: s.board.hexes.map(function (h) {
+          return { i: h.i, q: h.q, r: h.r, X: h.X, Y: h.Y, terrain: h.terrain, res: h.res, number: h.number, corners: h.corners };
+        }),
+        verts: s.board.verts.map(function (v) {
+          return {
+            i: v.i, X: v.X, Y: v.Y, port: v.port, wall: !!v.wall,
+            b: v.b ? { t: v.b.t, p: v.b.p } : null,
+            hexes: v.hexes, adj: v.adj, edges: v.edges
+          };
+        }),
+        edges: s.board.edges.map(function (e) { return { i: e.i, a: e.a, b: e.b, road: e.road }; }),
+        ports: s.board.ports
+      },
+      players: s.players.map(function (p) {
+        var pub = {
+          id: p.id, name: p.name, color: p.color, bot: p.bot, out: p.out,
+          cards: handCount(p),                          // 손패 장수만 공개
+          cardCount: p.cards.length,                    // 진보카드 장수
+          vpCards: p.vpCards, defender: p.defender,
+          level: JSON.parse(JSON.stringify(p.level)),
+          metro: JSON.parse(JSON.stringify(p.metro)),
+          walls: p.walls,
+          settlements: p.settlements.slice(),           // 판에 보이는 것이라 공개
+          cities: p.cities.slice(),
+          left: JSON.parse(JSON.stringify(p.left)),
+          ports: JSON.parse(JSON.stringify(p.ports)),
+          knights: p.knights.map(function (k) {
+            return { v: k.v, rank: k.rank, active: k.active,
+                     canAct: !!k.active && k.activatedTurn !== s.turnCount && k.actedTurn !== s.turnCount };
+          }),
+          power: knightPower(s, p),
+          handLimit: handLimit(p),
+          vp: vpOf(s, p),
+          roadLen: roadLength(s, p.id)
+        };
+        if (p.id === pid) {
+          pub.res = JSON.parse(JSON.stringify(p.res));
+          pub.cardList = p.cards.map(function (c) { return { type: c.type, track: c.track }; });
+          pub.vpFull = vpFull(s, p);
+          pub.craneReady = !!p.craneReady;
+          pub.fleetPick = p.fleetPick || null;
+        }
+        return pub;
+      }),
+      log: s.log.filter(function (l) { return !l.only || l.only === pid; })
+        .slice(-40).map(function (l) { return { i: l.i, text: l.text, mine: !!l.only }; }),
+      legal: isMine ? {
+        settlements: legalSettlements(s, pid),
+        cities: legalCities(s, pid),
+        roads: legalRoads(s, pid),
+        knightSpots: legalKnightSpots(s, pid),
+        walls: (mePlayer.cities || []).filter(function (v) { return !s.board.verts[v].wall; })
+      } : { settlements: [], cities: [], roads: [], knightSpots: [], walls: [] }
+    };
+  }
+
+
   root.CK = {
     RES: RES, COM: COM, ALL: ALL, NAME: NAME, TRACKS: TRACKS, TRACK_NAME: TRACK_NAME,
     TRACK_COM: TRACK_COM, TRACK_COLOR: TRACK_COLOR, LEVEL_NAME: LEVEL_NAME,
@@ -1534,7 +1624,7 @@
     COST: COST, PIECES: PIECES, WIN_VP: WIN_VP, BARB_TRACK: BARB_TRACK,
     MAX_LEVEL: MAX_LEVEL, METRO_LEVEL: METRO_LEVEL, WALL_MAX: WALL_MAX,
     CITY_YIELD: CITY_YIELD, EVENT_FACES: EVENT_FACES,
-    newGame: newGame, playerOf: playerOf, current: current, setupPlayer: setupPlayer,
+    newGame: newGame, viewFor: viewFor, playerOf: playerOf, current: current, setupPlayer: setupPlayer,
     placeSettlement: placeSettlement, placeRoad: placeRoad, roll: roll,
     discard: discard, moveRobber: moveRobber, robberVictims: robberVictims,
     knightPower: knightPower, build: build, placeKnight: placeKnight,

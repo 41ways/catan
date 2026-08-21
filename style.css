@@ -263,6 +263,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .panel { display: flex; flex-direction: column; gap: 9px; }
 .panelMsg { font-size: 14px; margin: 0; min-height: 21px; }
 .buildRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.buildRow.five { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 560px) { .buildRow.five { grid-template-columns: repeat(3, 1fr); } }
 /* 짓기 버튼 — 이름·점수·재료가 한 몸이다. 모자란 재료는 흐리게 */
 .bcard {
   display: flex; flex-direction: column; gap: 5px; align-items: center;
@@ -368,4 +370,62 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .pl { font-size: 11px; padding: 4px 7px; }
   .log { max-height: 56px; }
   #board { max-height: 48dvh; }
+}
+
+
+/* ---------------- 도시와 기사 ---------------- */
+
+.ckBar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  padding: 7px 10px; margin-bottom: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+}
+.barb { display: flex; align-items: center; gap: 7px; }
+.barbLabel { font-size: 12px; font-weight: 700; color: var(--dim); white-space: nowrap; }
+.barbTrack { display: flex; gap: 3px; }
+.barbTrack i {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1px solid var(--line); background: transparent;
+}
+.barbTrack i.on { background: #c0342b; border-color: #c0342b; }
+.barbInfo { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+.barbInfo.danger { color: #c0342b; font-weight: 700; }
+
+.tracks { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.trk {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 7px; border: 1px solid var(--line); border-radius: 9px;
+}
+.trk-trade { border-color: #d9a441; }
+.trk-politics { border-color: #5a8fd9; }
+.trk-science { border-color: #5aa96b; }
+.trkName { font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 3px; }
+.trkName .rc { width: 15px; height: 15px; font-size: 10px; }
+.trkPips { display: flex; gap: 2px; }
+.trkPips i { width: 7px; height: 12px; border-radius: 2px; border: 1px solid var(--line); }
+.trk-trade .trkPips i.on { background: #d9a441; border-color: #d9a441; }
+.trk-politics .trkPips i.on { background: #5a8fd9; border-color: #5a8fd9; }
+.trk-science .trkPips i.on { background: #5aa96b; border-color: #5aa96b; }
+.metro { font-size: 10.5px; font-weight: 800; color: var(--gold); }
+.trkBtn { font-size: 11px; padding: 3px 7px; border-radius: 7px; }
+.trkBtn.can { border-color: var(--good); color: var(--ink); }
+
+.rstack.com { border-style: dashed; }
+.devchip.trk-trade { border-color: #d9a441; }
+.devchip.trk-politics { border-color: #5a8fd9; }
+.devchip.trk-science { border-color: #5aa96b; }
+.devchip.vp { border-color: var(--gold); color: var(--gold); cursor: default; }
+
+.knight.mine { cursor: pointer; }
+.knight.act circle { filter: brightness(1.15); }
+.knightSel { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-dasharray: 3 3; }
+.wallMark { pointer-events: none; opacity: 0.9; }
+.merchantMark { fill: #e8d9b8; stroke: #6b4a2a; stroke-width: 1.5; pointer-events: none; }
+
+@media (max-width: 560px) {
+  .ckBar { gap: 6px; padding: 6px 8px; }
+  .tracks { margin-left: 0; width: 100%; justify-content: space-between; }
+  .trk { padding: 2px 5px; gap: 4px; }
+  .trkName { font-size: 10.5px; }
+  .barbInfo { font-size: 10.5px; }
 }

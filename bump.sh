@@ -4,7 +4,7 @@
 python3 - <<'PY'
 import re, hashlib
 p = 'index.html'; s = open(p).read()
-for f in ['style.css', 'rules.js', 'ai.js', 'net.js', 'app.js', 'vendor/peerjs.min.js']:
+for f in ['style.css', 'rules.js', 'ai.js', 'ck.js', 'ck-ai.js', 'net.js', 'app.js', 'vendor/peerjs.min.js']:
     v = hashlib.sha256(open(f, 'rb').read()).hexdigest()[:8]
     s = re.sub(r'(["\'])' + re.escape(f) + r'(\?v=[0-9a-f]+)?\1',
                lambda m, f=f, v=v: m.group(1) + f + '?v=' + v + m.group(1), s)

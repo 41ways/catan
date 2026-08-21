@@ -435,6 +435,49 @@ group('룰북 교차 확인 — 제한 규칙');
   ok(!!s5.event, '이벤트 주사위는 정상적으로 굴러간다');
 })();
 
+
+group('야만족 상륙 전 도둑 (룰북 5·8쪽)');
+(function () {
+  var s = ready(2, 301);
+  var p = s.players[0];
+  eq(s.barbEverLanded, false, '처음엔 야만족이 닿은 적이 없다');
+  // 손패를 불려 7 상황을 만든다
+  CK.ALL.forEach(function (c) { s.bank[c] -= 2; p.res[c] += 2; });
+  s.turn = 0;
+  var n = 0;
+  while (n++ < 800) {
+    s.phase = 'roll'; s.dice = null;
+    CK.roll(s, 'p0');
+    if (s.dice[0] + s.dice[1] === 7) break;
+    if (s.phase !== 'roll') s.phase = 'main';
+  }
+  ok(s.phase === 'discard', '상륙 전에도 절반 버리기는 한다');
+  var pid = Object.keys(s.mustDiscard)[0];
+  var pp = CK.playerOf(s, pid), pool = [];
+  CK.ALL.forEach(function (c) { for (var i = 0; i < pp.res[c]; i++) pool.push(c); });
+  CK.discard(s, pid, pool.slice(0, s.mustDiscard[pid]));
+  var rest = Object.keys(s.mustDiscard);
+  rest.forEach(function (q) {
+    var qq = CK.playerOf(s, q), pl = [];
+    CK.ALL.forEach(function (c) { for (var i = 0; i < qq.res[c]; i++) pl.push(c); });
+    CK.discard(s, q, pl.slice(0, s.mustDiscard[q]));
+  });
+  ok(s.phase !== 'robber', '상륙 전에는 도둑을 옮기지 않는다');
+
+  // 기사로도 못 쫓는다
+  var s2 = ready(2, 302);
+  var q2 = s2.players[0];
+  s2.turn = 0; s2.phase = 'main'; s2.turnCount = 5;
+  var hexOfRobber = s2.robber;
+  var spot = s2.board.hexes[hexOfRobber].corners[0];
+  q2.knights = [{ v: spot, rank: 1, active: true }];
+  var r = CK.chaseRobber(s2, 'p0', spot);
+  ok(!r.ok, '상륙 전에는 기사로 도둑을 못 쫓는다');
+  s2.barbEverLanded = true;
+  q2.knights = [{ v: spot, rank: 1, active: true }];
+  ok(CK.chaseRobber(s2, 'p0', spot).ok, '상륙한 뒤에는 쫓을 수 있다');
+})();
+
 group('무작위 60판 완주');
 (function () {
   var rnd = (function (seed) {
