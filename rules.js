@@ -238,7 +238,7 @@
       playedDev: false, boughtDev: [], freeRoads: 0,
       trade: null,
       longest: { p: null, len: 0 }, army: { p: null, n: 0 },
-      turnCount: 0, winner: null, log: [], logId: 0, lastGain: null
+      turnCount: 0, winner: null, log: [], logId: 0, lastGain: null, recent: []
     };
     s.board.hexes.forEach(function (h, i) { if (h.terrain === 'desert') s.robber = i; });
     s.setupOrder = [];
@@ -246,6 +246,13 @@
     for (var j = s.players.length - 1; j >= 0; j--) s.setupOrder.push(j);
     say(s, null, '마을을 하나 놓고 도로를 하나 놓습니다. 두 바퀴째는 역순이고, 그때 놓은 마을 둘레의 자원을 받습니다.');
     return s;
+  }
+
+  // 방금 지은 것 — 다음 사람 차례가 끝날 때까지 판에 표시해 준다
+  function note(s, kind, id, pid) {
+    s.recent = s.recent || [];
+    s.recent.push({ kind: kind, id: id, p: pid, turn: s.turnCount });
+    if (s.recent.length > 30) s.recent.shift();
   }
 
   function say(s, only, text) { s.log.push({ i: s.logId++, only: only, text: text }); if (s.log.length > 120) s.log.shift(); }
@@ -421,6 +428,7 @@
     s.board.verts[v].b = { t: 'settlement', p: pid };
     p.settlements.push(v); p.left.settlement--;
     if (s.board.verts[v].port) p.ports[s.board.verts[v].port] = true;
+    note(s, 'settlement', v, pid);
     s.setupSpot = v; s.setupSub = 'road';
     say(s, null, p.name + ' 마을');
     if (s.setupIdx >= s.players.length) {                 // 두 바퀴째 — 둘레 자원을 받는다
@@ -443,6 +451,7 @@
     if (legalRoads(s, pid).indexOf(e) < 0) return err('방금 놓은 마을에 붙여서 놓아야 합니다.');
     s.board.edges[e].road = pid;
     p.roads.push(e); p.left.road--;
+    note(s, 'road', e, pid);
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
@@ -621,6 +630,7 @@
       if (!free && !canPay(p, COST.road)) return err('자원이 모자랍니다. (벽돌 1 · 나무 1)');
       if (free) s.freeRoads--; else pay(s, p, COST.road);
       e.road = pid; p.roads.push(id); p.left.road--;
+      note(s, 'road', id, pid);
       say(s, null, p.name + ' 도로' + (free ? ' (무료)' : ''));
       // 공짜 도로가 남았는데 놓을 자리나 말이 없으면 남은 몫은 접는다
       if (s.freeRoads > 0 && (!p.left.road || !legalRoads(s, pid).length)) {
@@ -640,6 +650,7 @@
       pay(s, p, COST.settlement);
       s.board.verts[id].b = { t: 'settlement', p: pid };
       p.settlements.push(id); p.left.settlement--;
+      note(s, 'settlement', id, pid);
       var port = s.board.verts[id].port;
       if (port) { p.ports[port] = true; say(s, null, p.name + ' 항구 확보 — ' + portName(port)); }
       say(s, null, p.name + ' 마을 — 1점');
@@ -655,6 +666,7 @@
       if (!canPay(p, COST.city)) return err('자원이 모자랍니다. (밀 2 · 철 3)');
       pay(s, p, COST.city);
       v.b.t = 'city';
+      note(s, 'city', id, pid);
       p.settlements = p.settlements.filter(function (x) { return x !== id; });
       p.cities.push(id);
       p.left.city--; p.left.settlement++;
@@ -896,6 +908,7 @@
       devLeft: s.devDeck.length,
       freeRoads: s.freeRoads, playedDev: s.playedDev,
       lastGain: s.lastGain ? JSON.parse(JSON.stringify(s.lastGain)) : null,
+      recent: (s.recent || []).filter(function (r) { return r.turn >= s.turnCount - 1; }),
       setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,

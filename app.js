@@ -459,6 +459,27 @@
       });
     });
 
+    // 방금 지은 것 — 어디에 놓았는지 눈에 걸리게
+    (v.recent || []).forEach(function (r) {
+      if (r.p === v.me) return;                          // 내가 지은 건 이미 안다
+      var pc = PCOLOR[(playerIn(v, r.p) || {}).color] || '#fff';
+      if (r.kind === 'road') {
+        var e = v.board.edges[r.id];
+        if (!e) return;
+        var a = v.board.verts[e.a], b = v.board.verts[e.b];
+        g.appendChild(svgEl('line', {
+          x1: px(a.X), y1: py(a.Y), x2: px(b.X), y2: py(b.Y),
+          class: 'justBuiltRoad', stroke: pc
+        }));
+      } else {
+        var vt = v.board.verts[r.id];
+        if (!vt) return;
+        g.appendChild(svgEl('circle', {
+          cx: px(vt.X), cy: py(vt.Y), r: 17, class: 'justBuilt', stroke: pc
+        }));
+      }
+    });
+
     // 도둑 — 숫자 칩 왼쪽에 세운다. 칩은 그대로 보인다
     (function () {
       var h = v.board.hexes[v.robber];

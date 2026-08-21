@@ -365,6 +365,76 @@ group('진보카드');
   eq(a.cards.length, 1, '내 손에 들어왔다');
 })();
 
+
+group('룰북 교차 확인 — 제한 규칙');
+(function () {
+  // 진보카드는 넉 장까지
+  var s = ready(2, 202);
+  var p = s.players[0];
+  p.cards = [{ type: 'spy' }, { type: 'spy' }, { type: 'warlord' }, { type: 'bishop' }];
+  p.level.politics = 5;
+  s.progress.politics = ['diplomat', 'diplomat'];
+  s.turn = 0;
+  var n = 0;
+  while (n++ < 500) {
+    s.phase = 'roll'; s.dice = null;
+    CK.roll(s, 'p0');
+    if (s.event === 'politics') break;
+    if (s.phase !== 'roll') s.phase = 'main';
+  }
+  ok(p.cards.length <= CK.MAX_CARDS, '진보카드는 넉 장을 넘지 않는다');
+  eq(CK.MAX_CARDS, 4, '보유 한도 4장');
+
+  // 첩자로도 넉 장을 넘지 못한다
+  var s2 = ready(2, 203);
+  var a = s2.players[0], b = s2.players[1];
+  s2.turn = 0; s2.phase = 'main';
+  a.cards = [{ type: 'spy' }, { type: 'spy' }, { type: 'spy' }, { type: 'warlord' }];
+  b.cards = [{ type: 'harbor' }];
+  ok(!CK.playCard(s2, 'p0', 'spy', ['p1']).ok, '넉 장이면 첩자로도 못 가져온다');
+
+  // 수도는 올릴 도시가 있어야 한다
+  var s3 = ready(2, 204);
+  var q = s3.players[0];
+  s3.turn = 0; s3.phase = 'main';
+  give(s3, q, { c: 20, n: 20 });
+  q.level.trade = 3; q.level.politics = 3;
+  eq(q.cities.length, 1, '도시 하나로 시작');
+  ok(CK.develop(s3, 'p0', 'trade').ok, '첫 4단계는 된다');
+  eq(q.metro.trade, true, '수도가 섰다');
+  ok(!CK.develop(s3, 'p0', 'politics').ok, '남은 도시가 없으면 두 번째 4단계는 막힌다');
+  give(s3, q, { g: 2, o: 3 });
+  CK.build(s3, 'p0', 'city', CK.legalCities(s3, 'p0')[0]);
+  ok(CK.develop(s3, 'p0', 'politics').ok, '도시를 더 지으면 열린다');
+  ok(CK.metroCount(q) <= q.cities.length, '수도 수가 도시 수를 넘지 않는다');
+
+  // 승점 진보카드는 손에 안 들어오고 즉시 점수가 된다
+  var s4 = ready(2, 205);
+  var r = s4.players[0];
+  r.level.science = 5;
+  s4.progress.science = ['printer'];
+  s4.turn = 0;
+  var m = 0, before = CK.vpFull(s4, r);
+  while (m++ < 500) {
+    s4.phase = 'roll'; s4.dice = null;
+    CK.roll(s4, 'p0');
+    if (s4.event === 'science') break;
+    if (s4.phase !== 'roll') s4.phase = 'main';
+  }
+  eq(r.cards.length, 0, '인쇄소는 손에 들어오지 않는다');
+  eq(CK.vpFull(s4, r) - before, 1, '받는 즉시 1점');
+
+  // 연금술사는 주사위 전에만
+  var s5 = ready(2, 206);
+  var z = s5.players[0];
+  s5.turn = 0; s5.phase = 'roll';
+  z.cards = [{ type: 'alchemist', track: 'science' }];
+  ok(CK.playCard(s5, 'p0', 'alchemist', [6, 5]).ok, '주사위 전 연금술사');
+  CK.roll(s5, 'p0');
+  ok(s5.dice[0] === 6 && s5.dice[1] === 5, '정한 눈이 그대로 나온다');
+  ok(!!s5.event, '이벤트 주사위는 정상적으로 굴러간다');
+})();
+
 group('무작위 60판 완주');
 (function () {
   var rnd = (function (seed) {

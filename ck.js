@@ -35,6 +35,7 @@
   var BARB_TRACK = 7;                                    // 야만족이 일곱 칸을 오면 상륙
   var KNIGHT_MAX_PER_RANK = 2;
   var WALL_MAX = 3;
+  var MAX_CARDS = 4;                                     // 진보카드는 넉 장까지
   var HAND_BASE = 7;                                     // 성벽 하나마다 +2
 
   var COST = {
@@ -142,7 +143,7 @@
       trade: null,
       longest: { p: null, len: 0 },
       pending: null,                                  // 카드 처리 중 기다리는 선택
-      turnCount: 0, winner: null, log: [], logId: 0
+      turnCount: 0, winner: null, log: [], logId: 0, recent: []
     };
     board.hexes.forEach(function (h, i) { if (h.terrain === 'desert') s.robber = i; });
     s.setupOrder = [];
@@ -150,6 +151,12 @@
     for (var j = s.players.length - 1; j >= 0; j--) s.setupOrder.push(j);
     say(s, null, '마을과 도로를 하나씩 놓고, 두 바퀴째는 역순으로 도시와 도로를 놓습니다. 도시 둘레의 자원을 받고 시작합니다.');
     return s;
+  }
+
+  function note(s, kind, id, pid) {
+    s.recent = s.recent || [];
+    s.recent.push({ kind: kind, id: id, p: pid, turn: s.turnCount });
+    if (s.recent.length > 30) s.recent.shift();
   }
 
   function say(s, only, text) {
@@ -342,10 +349,12 @@
       if (!p.left.city) return err('도시 말이 없습니다.');
       s.board.verts[v].b = { t: 'city', p: pid };
       p.cities.push(v); p.left.city--;
+      note(s, 'city', v, pid);
       say(s, null, p.name + ' 도시');
     } else {
       s.board.verts[v].b = { t: 'settlement', p: pid };
       p.settlements.push(v); p.left.settlement--;
+      note(s, 'settlement', v, pid);
       say(s, null, p.name + ' 마을');
     }
     if (s.board.verts[v].port) p.ports[s.board.verts[v].port] = true;
@@ -370,6 +379,7 @@
     if (legalRoads(s, pid).indexOf(e) < 0) return err('방금 놓은 건물에 붙여서 놓아야 합니다.');
     s.board.edges[e].road = pid;
     p.roads.push(e); p.left.road--;
+    note(s, 'road', e, pid);
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
@@ -430,6 +440,11 @@
         p.vpCards += VP_CARDS[card];
         say(s, null, p.name + ' ' + TRACK_NAME[track] + ' 진보카드 — ' + CARD_NAME[card] + ' (승점 1, 즉시 공개)');
         checkWin(s, p);
+      } else if (p.cards.length >= MAX_CARDS) {
+        // 손에 넉 장을 이미 들고 있으면 받자마자 더미 맨 아래로 보낸다
+        s.progress[track].unshift(card);
+        say(s, p.id, '진보카드가 넉 장이라 ' + CARD_NAME[card] + '을(를) 받지 못했습니다.');
+        say(s, null, p.name + '은(는) 진보카드가 넉 장이라 받지 못했습니다.');
       } else {
         p.cards.push({ type: card, track: track });
         got.push(p.name);
@@ -536,6 +551,7 @@
           if (s.progress[t] && s.progress[t].length) {
             var card = s.progress[t].pop();
             if (VP_CARDS[card]) { p.vpCards += VP_CARDS[card]; checkWin(s, p); }
+            else if (p.cards.length >= MAX_CARDS) { s.progress[t].unshift(card); }
             else p.cards.push({ type: card, track: t });
             say(s, null, p.name + ' 방어 공로로 ' + TRACK_NAME[t] + ' 진보카드');
           }
@@ -701,6 +717,7 @@
       if (!free && !canPay(p, COST.road)) return err('자원이 모자랍니다. (흙 1 · 나무 1)');
       if (free) s.freeRoads--; else pay(s, p, COST.road);
       e.road = pid; p.roads.push(id); p.left.road--;
+      note(s, 'road', id, pid);
       say(s, null, p.name + ' 도로' + (free ? ' (무료)' : ''));
       if (s.freeRoads > 0 && (!p.left.road || !legalRoads(s, pid).length)) {
         s.freeRoads = 0;
@@ -720,6 +737,7 @@
       pay(s, p, COST.settlement);
       s.board.verts[id].b = { t: 'settlement', p: pid };
       p.settlements.push(id); p.left.settlement--;
+      note(s, 'settlement', id, pid);
       var port = s.board.verts[id].port;
       if (port) p.ports[port] = true;
       say(s, null, p.name + ' 마을 — 1점');
@@ -735,6 +753,7 @@
       if (!canPay(p, COST.city)) return err('자원이 모자랍니다. (밀 2 · 철 3)');
       pay(s, p, COST.city);
       v.b.t = 'city';
+      note(s, 'city', id, pid);
       p.settlements = p.settlements.filter(function (x) { return x !== id; });
       p.cities.push(id);
       p.left.city--; p.left.settlement++;
@@ -953,7 +972,9 @@
     if (p.id !== pid) return err('차례가 아닙니다.');
     if (TRACKS.indexOf(track) < 0) return err('그런 분야가 없습니다.');
     if (p.level[track] >= MAX_LEVEL) return err('이미 마지막 단계입니다.');
-    if (p.level[track] >= 3 && !p.cities.length) return err('도시가 있어야 더 개발할 수 있습니다.');
+    if (p.level[track] >= METRO_LEVEL - 1 && !hasFreeCity(p)) {
+      return err('수도를 올릴 도시가 없습니다. 도시를 하나 더 지어야 ' + METRO_LEVEL + '단계로 갈 수 있습니다.');
+    }
     var need = devCost(p.level[track]);
     if (useCrane) {
       if (!p.craneReady) return err('기중기를 쓸 수 없습니다.');
@@ -971,17 +992,26 @@
     return OK;
   }
   // 4단계를 처음 넘기면 수도. 더 높이 올린 사람이 나오면 뺏긴다.
+  function metroCount(p) {
+    var n = 0;
+    TRACKS.forEach(function (t) { if (p.metro[t]) n++; });
+    return n;
+  }
+  // 수도는 도시 위에 올린다 — 아직 수도가 아닌 내 도시가 있어야 한다
+  function hasFreeCity(p) { return p.cities.length > metroCount(p); }
+
   function grantMetro(s, p, track) {
     var holder = null;
     s.players.forEach(function (q) { if (q.metro[track]) holder = q; });
     if (!holder) {
+      if (!hasFreeCity(p)) return;
       p.metro[track] = true;
-      if (!p.cities.length) { p.metro[track] = false; return; }
       say(s, null, p.name + ' ' + TRACK_NAME[track] + ' 수도 건설 — 2점');
       return;
     }
     if (holder.id === p.id) return;
     if (p.level[track] > holder.level[track]) {
+      if (!hasFreeCity(p)) return;
       holder.metro[track] = false;
       p.metro[track] = true;
       say(s, null, p.name + '이(가) ' + holder.name + '에게서 ' + TRACK_NAME[track] + ' 수도를 빼앗았습니다.');
@@ -1349,6 +1379,7 @@
       if (!target || target.id === p.id || target.out) return err('상대를 골라 주세요.');
       if (!target.cards.length) return err('그 사람은 진보카드가 없습니다.');
       var i = Math.floor(s.rnd() * target.cards.length);
+      if (p.cards.length >= MAX_CARDS) return err('내 진보카드가 이미 넉 장입니다.');
       var card = target.cards.splice(i, 1)[0];
       p.cards.push(card);
       say(s, p.id, '가져온 카드: ' + CARD_NAME[card.type]);
@@ -1509,7 +1540,8 @@
     knightPower: knightPower, build: build, placeKnight: placeKnight,
     activateKnight: activateKnight, upgradeKnight: upgradeKnight, moveKnight: moveKnight,
     knightMoves: knightMoves, knightDisplaceTargets: knightDisplaceTargets, chaseRobber: chaseRobber,
-    knightCount: knightCount, findKnight: findKnight,
+    knightCount: knightCount, findKnight: findKnight, metroCount: metroCount, hasFreeCity: hasFreeCity,
+    MAX_CARDS: MAX_CARDS,
     develop: develop, devCost: devCost, tradeRate: tradeRate,
     bankTrade: bankTrade, offerTrade: offerTrade, replyTrade: replyTrade,
     acceptTrade: acceptTrade, cancelTrade: cancelTrade,

@@ -173,6 +173,21 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .hex.t-hills { fill: #b06a3f; }
 .hex.t-mountains { fill: #7a8494; }
 .hex.t-desert { fill: #c9b48a; }
+/* 방금 남이 지은 것 — 잠깐 반짝인다 */
+.justBuilt {
+  fill: none; stroke-width: 3; pointer-events: none;
+  animation: justPulse 1.1s ease-in-out infinite;
+}
+.justBuiltRoad {
+  stroke-width: 13; stroke-linecap: round; fill: none; pointer-events: none;
+  opacity: 0.5; animation: justPulse 1.1s ease-in-out infinite;
+}
+@keyframes justPulse {
+  0%   { opacity: 0.15; stroke-width: 3; }
+  50%  { opacity: 0.9;  stroke-width: 5; }
+  100% { opacity: 0.15; stroke-width: 3; }
+}
+
 /* 도둑이 앉은 칸 — 빗금으로 확실히 */
 .hex.robbed { filter: saturate(0.45) brightness(0.72); }
 .robHatch { pointer-events: none; }
