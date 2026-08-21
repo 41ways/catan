@@ -550,8 +550,9 @@
   function clickEdge(ei) {
     var v = App.view;
     if (v.phase === 'setup') { act('placeRoad', [ei]); return; }
+    // 공짜 도로가 남아 있으면 계속 놓는다. 아니면 한 번 짓고 모드를 푼다.
+    if (v.freeRoads <= 1) App.build = null;
     act('build', ['road', ei]);
-    if (v.freeRoads <= 1) App.build = App.build === 'road' ? 'road' : App.build;
   }
   function clickRobber(hex) {
     var v = App.view;
@@ -686,7 +687,8 @@
       for (var c in need) if (res[c] < need[c]) return false;
       return true;
     }
-    function bbtn(label, pts, cost, usable, onClick, mode) {
+    // 못 누르는 버튼도 눌리게 두고, 왜 안 되는지 알려준다
+    function bbtn(label, pts, cost, usable, onClick, mode, why) {
       var b = el('button', 'bcard');
       var head = el('span', 'bhead');
       head.appendChild(el('span', 'bname', label));
@@ -702,12 +704,41 @@
         cs.appendChild(chip);
       });
       b.appendChild(cs);
-      if (usable) b.classList.add('can');
-      else b.disabled = true;
+      if (usable) { b.classList.add('can'); b.onclick = onClick; }
+      else {
+        b.classList.add('off');
+        b.onclick = function () { toast(why || '지금은 지을 수 없습니다.'); };
+      }
       if (mode && App.build === mode) b.classList.add('on');
-      b.onclick = onClick;
       buildRow.appendChild(b);
       return b;
+    }
+    // 왜 못 짓는지 한 줄로
+    function why(kind) {
+      if (!myTurn) return '내 차례에만 지을 수 있습니다.';
+      if (v.phase === 'roll') return '먼저 주사위를 굴리세요.';
+      if (v.phase !== 'main') return '지금은 지을 때가 아닙니다.';
+      if (v.trade) return '먼저 거래 제안을 정리하세요.';
+      if (kind === 'dev') {
+        if (!v.devLeft) return '발전 카드가 다 떨어졌습니다.';
+        return '자원이 모자랍니다 — 양 1 · 밀 1 · 철 1이 필요합니다.';
+      }
+      if (kind === 'road') {
+        if (!p.left.road) return '도로 말 15개를 다 썼습니다.';
+        if (!v.legal.roads.length) return '이어 놓을 자리가 없습니다.';
+        return '자원이 모자랍니다 — 벽돌 1 · 나무 1이 필요합니다.';
+      }
+      if (kind === 'settlement') {
+        if (!p.left.settlement) return '마을 말 5개를 다 썼습니다. 하나를 도시로 올리면 말이 돌아옵니다.';
+        if (!v.legal.settlements.length) return '지을 자리가 없습니다 — 도로를 더 이어서 빈 꼭짓점을 만들어야 합니다. (마을끼리는 두 변 이상 떨어져야 합니다)';
+        return '자원이 모자랍니다 — 벽돌·나무·양·밀이 한 장씩 필요합니다.';
+      }
+      if (kind === 'city') {
+        if (!p.left.city) return '도시 말 4개를 다 썼습니다.';
+        if (!v.legal.cities.length) return '올릴 내 마을이 없습니다. 마을을 먼저 지으세요.';
+        return '자원이 모자랍니다 — 밀 2 · 철 3이 필요합니다.';
+      }
+      return '지금은 지을 수 없습니다.';
     }
     var canRoad = buildable && afford(['b', 'l']) && p.left.road > 0 && v.legal.roads.length > 0;
     var canSett = buildable && afford(['b', 'l', 'w', 'g']) && p.left.settlement > 0 && v.legal.settlements.length > 0;
@@ -716,10 +747,15 @@
     function modeToggle(mode) {
       return function () { App.build = App.build === mode ? null : mode; render(); };
     }
-    bbtn('도로', '0점', ['b', 'l'], canRoad, modeToggle('road'), 'road');
-    bbtn('마을', '1점', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement');
-    bbtn('도시', '2점', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city');
-    bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); });
+    // 켜 둔 모드가 더 이상 불가능하면 조용히 푼다
+    if ((App.build === 'road' && !canRoad) || (App.build === 'settlement' && !canSett) ||
+        (App.build === 'city' && !canCity)) {
+      App.build = null;
+    }
+    bbtn('도로', '0점', ['b', 'l'], canRoad, modeToggle('road'), 'road', why('road'));
+    bbtn('마을', '1점', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement', why('settlement'));
+    bbtn('도시', '2점', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city', why('city'));
+    bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); }, null, why('dev'));
     box.appendChild(el('p', 'panelFoot', '최장 교역로 2점 · 최강 기사단 2점 — 더 잘한 사람이 나오면 넘어갑니다.'));
 
     var acts = el('div', 'acts');

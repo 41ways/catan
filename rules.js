@@ -130,13 +130,18 @@
     return out;
   }
 
+  // 사막은 언제나 한가운데. 나머지 18개만 섞는다.
   // 6과 8이 붙지 않고 같은 숫자도 붙지 않게. 못 맞추면 200번까지 다시 깐다.
   function layLand(board, rnd) {
+    var center = board.hexes.length - 1;                 // SPIRAL 마지막이 (0,0)
+    var rest = TERRAIN_BAG.filter(function (t) { return t !== 'desert'; });
     for (var attempt = 0; attempt < 200; attempt++) {
-      var bag = shuffle(TERRAIN_BAG.slice(), rnd);
+      var bag = shuffle(rest.slice(), rnd);
+      var k = 0;
       board.hexes.forEach(function (h, i) {
-        h.terrain = bag[i];
-        h.res = TERRAIN_RES[bag[i]];
+        var t = i === center ? 'desert' : bag[k++];
+        h.terrain = t;
+        h.res = TERRAIN_RES[t];
         h.number = null;
       });
       var n = 0;

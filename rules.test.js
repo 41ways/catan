@@ -83,6 +83,12 @@ group('판 만들기');
     var inner = b.verts.filter(function (v) { return v.hexes.length === 3; }).length;
     eq(inner, 24, '타일 셋이 만나는 꼭짓점 24개');
     eq(s.board.hexes[s.robber].terrain, 'desert', '도둑은 사막에서 시작');
+    var center = b.hexes[b.hexes.length - 1];
+    ok(center.q === 0 && center.r === 0, '마지막 타일이 한가운데');
+    eq(center.terrain, 'desert', '사막은 언제나 한가운데');
+    eq(center.number, null, '가운데는 숫자가 없다');
+    eq(s.robber, b.hexes.length - 1, '도둑은 가운데에서 시작');
+    ok(!b.hexes.slice(0, 18).some(function (h) { return h.terrain === 'desert'; }), '사막은 하나뿐이고 가운데에만');
   }
 })();
 
@@ -139,6 +145,13 @@ group('준비 단계');
   var t = bankTotal(s);
   ok(R.RES.every(function (c) { return t[c] === 19; }), '자원 총량 19장씩 유지');
 })();
+
+/* 도둑을 아무 데나 규칙에 맞게 옮긴다 (대상이 여럿이면 골라서) */
+function moveRob(s, pid, hex) {
+  if (hex === undefined) hex = (s.robber + 1) % s.board.hexes.length;
+  var v = R.robberVictims(s, hex, pid);
+  return R.moveRobber(s, pid, hex, v.length ? v[0] : null);
+}
 
 /* 준비를 마친 판을 빠르게 만드는 도구 */
 function ready(n, seed) {
@@ -257,6 +270,9 @@ group('7 · 도둑');
   var n = 0;
   while (n++ < 4000) {
     s.phase = 'roll'; s.mustDiscard = {};
+    give(s.players[0], { b: 3, l: 3, w: 2, g: 0, o: 0 });   // 8장
+    give(s.players[1], { b: 4, l: 3, w: 2, g: 0, o: 0 });   // 9장
+    give(s.players[2], { b: 3, l: 2, w: 2, g: 0, o: 0 });   // 7장
     R.roll(s, 'p0');
     if (s.dice[0] + s.dice[1] === 7) break;
   }
@@ -296,7 +312,7 @@ group('7 · 도둑');
     eq(R.handCount(R.playerOf(s, v0[0])), had - 1, '한 장을 빼앗긴다');
     eq(R.handCount(s.players[0]), mine + 1, '한 장을 가져온다');
   } else {
-    ok(R.moveRobber(s, 'p0', (s.robber + 3) % 19).ok, '도둑을 옮긴다');
+    ok(moveRob(s, 'p0', (s.robber + 3) % 19).ok, '도둑을 옮긴다');
   }
   eq(s.phase, 'main', '도둑을 옮기면 건설 단계');
   var t = bankTotal(s);
@@ -514,7 +530,7 @@ group('발전 카드');
   ok(R.playDev(s2, 'p0', 'knight', []).ok, '기사');
   eq(s2.phase, 'robber', '기사를 쓰면 도둑을 옮긴다');
   eq(a.knights, 1, '쓴 기사가 쌓인다');
-  R.moveRobber(s2, 'p0', (s2.robber + 4) % 19, null);
+  moveRob(s2, 'p0');
   eq(s2.phase, 'main', '옮기면 원래 단계로 돌아온다');
 
   // 최강 기사단
@@ -523,21 +539,21 @@ group('발전 카드');
   R.playDev(s2, 'p0', 'knight', []);
   eq(s2.army.p, 'p0', '기사 3장이면 최강 기사단');
   eq(a.knights, 3, '기사 3');
-  R.moveRobber(s2, 'p0', (s2.robber + 5) % 19, null);
+  moveRob(s2, 'p0');
   var b = s2.players[1];
   b.knights = 3;
   b.dev = [{ type: 'knight', turn: 1 }];
   s2.turn = 1; s2.phase = 'main'; s2.playedDev = false;
   R.playDev(s2, 'p1', 'knight', []);
   eq(s2.army.p, 'p1', '더 많이 쓰면 넘어간다');
-  R.moveRobber(s2, 'p1', (s2.robber + 6) % 19, null);
+  moveRob(s2, 'p1');
 
   // 주사위 전에 기사
   var s3 = ready(3, 404);
   s3.phase = 'roll'; s3.turn = 0; s3.turnCount = 9;
   s3.players[0].dev = [{ type: 'knight', turn: 1 }];
   ok(R.playDev(s3, 'p0', 'knight', []).ok, '주사위를 굴리기 전에도 기사를 쓴다');
-  R.moveRobber(s3, 'p0', (s3.robber + 2) % 19, null);
+  ok(moveRob(s3, 'p0').ok, '기사로 도둑을 옮긴다');
   eq(s3.phase, 'roll', '기사를 쓰고 나면 주사위를 굴린다');
   ok(R.roll(s3, 'p0').ok, '주사위');
 })();

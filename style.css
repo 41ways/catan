@@ -124,7 +124,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .pl.out { opacity: 0.45; }
 .dice { display: flex; gap: 5px; }
 .die {
-  width: 30px; height: 30px; border-radius: 7px; background: #f2ead6; color: #222;
+  width: 30px; height: 30px; border-radius: 7px; background: #fffdf7; color: #222;
+  border: 1px solid var(--line); box-shadow: var(--shadow);
   font-weight: 800; font-size: 17px; display: flex; align-items: center; justify-content: center;
 }
 .dsum { font-weight: 800; font-size: 16px; color: var(--gold); align-self: center; }
@@ -246,9 +247,9 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .bcard .bpts { font-size: 11px; font-weight: 700; color: var(--gold); }
 .bcard .bcost { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
 .bcard .bcost .rc { width: 17px; height: 17px; font-size: 11px; }
-.bcard:disabled { background: transparent; opacity: 1; cursor: default; }
-.bcard:disabled .bname { color: var(--dim); }
-.bcard:disabled .bpts { color: var(--faint); }
+.bcard.off { background: transparent; }
+.bcard.off .bname { color: var(--dim); }
+.bcard.off .bpts { color: var(--faint); }
 .bcard.can { border-color: var(--good); box-shadow: 0 0 0 1px var(--good); }
 .bcard.on { outline: 2px solid var(--gold); border-color: var(--gold); box-shadow: none; }
 .rc.miss { opacity: 0.28; filter: grayscale(0.6); }
