@@ -249,7 +249,7 @@
   // 판 좌표(viewBox)를 화면 좌표로 — viewBox 는 (0,0) 이 한가운데다
   function boardToScreen(x, y) {
     var svg = $('board'), rect = svg.getBoundingClientRect();
-    var scale = Math.min(rect.width / 600, rect.height / 520);
+    var scale = Math.min(rect.width / 560, rect.height / 560);
     return {
       x: rect.left + rect.width / 2 + x * scale,
       y: rect.top + rect.height / 2 + y * scale
@@ -359,19 +359,16 @@
     svg.appendChild(g);
     var myTurn = isMyTurn(v);
 
-    // 바다 링 — 참고 이미지처럼 섬을 감싼다
-    var seaSeen = {};
-    v.board.hexes.forEach(function (h) {
-      [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]].forEach(function (d) {
-        var q = h.q + d[0], r = h.r + d[1];
-        if (Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) < 3) return;
-        var key = q + ',' + r;
-        if (seaSeen[key]) return;
-        seaSeen[key] = 1;
-        var cx = px(2 * q + r), cy = py(3 * r);
-        g.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), class: 'hex sea' }));
-      });
-    });
+    // 바다 — 섬 둘레만 얇게 두른다 (판이 잘리지 않게)
+    (function () {
+      var pts = [];
+      var Rr = S * 5.02;                     // 섬 바깥 반지름보다 살짝 크게
+      for (var i = 0; i < 6; i++) {
+        var a = Math.PI / 180 * (60 * i - 90);
+        pts.push((Rr * Math.cos(a)).toFixed(1) + ',' + (Rr * Math.sin(a)).toFixed(1));
+      }
+      g.appendChild(svgEl('polygon', { points: pts.join(' '), class: 'seaRing' }));
+    })();
 
     // 땅 타일
     v.board.hexes.forEach(function (h) {
@@ -582,7 +579,9 @@
       d.dataset.pid = p.id;
       d.style.borderLeftColor = PCOLOR[p.color];
       if ((v.phase === 'setup' ? v.setup.who === p.id : v.turn === i) && v.phase !== 'over') d.classList.add('turn');
-      d.appendChild(el('span', 'nm', p.name));
+      var nm = el('span', 'nm', p.name);
+      d.appendChild(nm);
+      if (p.id === v.me) d.appendChild(el('span', 'meTag', '나'));
       d.appendChild(el('span', 'vp', (p.id === v.me && p.vpFull !== undefined ? p.vpFull : p.vp) + '점'));
       var cardIc = el('span', 'st');
       cardIc.appendChild(el('i', 'cardIc'));
@@ -618,7 +617,8 @@
       var d = el('div', 'rstack' + (n ? '' : ' zero'));
       d.dataset.res = c;
       d.appendChild(rchip(c));
-      d.appendChild(el('span', null, discarding && picked ? (n - picked) + '/' + n : String(n)));
+      d.appendChild(el('span', 'rname', RN[c]));
+      d.appendChild(el('span', 'rnum', discarding && picked ? (n - picked) + '/' + n : String(n)));
       if (discarding && n > 0) {
         d.classList.add('selectable');
         if (picked) d.classList.add('sel');
@@ -818,7 +818,12 @@
 
     // main
     if (v.freeRoads > 0) {
-      msg.innerHTML = '공짜 도로 <b>' + v.freeRoads + '개</b> — 놓을 변을 누르세요.';
+      if (v.legal.roads.length && p.left.road) {
+        msg.innerHTML = '<b>도로 건설</b> — 공짜 도로 <b>' + v.freeRoads + '개</b>가 남았습니다. 판에서 주황 점선을 누르세요.';
+      } else {
+        msg.innerHTML = '놓을 자리가 없어 공짜 도로는 넘어갑니다.';
+        btn('차례 넘기기', function () { act('endTurn', []); }, true);
+      }
       return;
     }
     if (App.build === 'road') msg.innerHTML = '<b>도로를 놓을 변</b>을 누르세요.';
@@ -1141,12 +1146,7 @@
   })();
   $('themeToggle').onchange = function () { applyTheme($('themeToggle').checked); };
 
-  // 처음 온 사람에게는 안내를 먼저 보여준다
-  (function () {
-    var seen = null;
-    try { seen = localStorage.getItem('catan.seen'); } catch (e) {}
-    if (!seen) tourShow(0);
-  })();
+  // 안내는 타이틀의 `가이드` 를 눌렀을 때만 연다
   $('name').value = localStorage.getItem('catan.name') || '';
   $('name').addEventListener('change', function () { localStorage.setItem('catan.name', myName()); });
 

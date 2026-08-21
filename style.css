@@ -120,6 +120,10 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   display: inline-block; width: 8px; height: 11px; border-radius: 2px;
   background: #f2ead6; border: 1px solid #0008; vertical-align: -1.5px; margin-right: 2px;
 }
+.meTag {
+  font-size: 10px; font-weight: 800; color: var(--btnInk); background: var(--gold);
+  border-radius: 5px; padding: 0 4px; letter-spacing: 0.05em;
+}
 .pl .badge { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 0 4px; color: var(--gold); }
 .pl.out { opacity: 0.45; }
 .dice { display: flex; gap: 5px; }
@@ -157,11 +161,11 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .diceNote { font-size: 15px; color: #e8c06a; min-height: 22px; font-weight: 600; }
 
 .boardBox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 2px 4px; }
-#board { width: 100%; height: 100%; max-height: 62dvh; touch-action: manipulation; }
+#board { width: 100%; height: 100%; max-height: 66dvh; touch-action: manipulation; }
 
 /* 판 */
 .hex { stroke: #0b0e14; stroke-width: 1.5; }
-.hex.sea { fill: var(--sea); stroke: var(--seaLine); }
+.seaRing { fill: var(--sea); stroke: var(--seaLine); stroke-width: 2; }
 .hex.t-forest { fill: #2e5d3f; }
 .hex.t-pasture { fill: #79a352; }
 .hex.t-fields { fill: #d9a441; }
@@ -218,6 +222,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   display: flex; align-items: center; gap: 4px; background: var(--panel);
   border: 1px solid var(--line); border-radius: 9px; padding: 4px 8px; font-weight: 700; font-size: 14px;
 }
+.rstack .rname { font-size: 11px; font-weight: 600; color: var(--dim); }
+.rstack .rnum { min-width: 0.9em; text-align: right; }
 .rstack.zero { opacity: 0.35; }
 .rstack.selectable { cursor: pointer; }
 .rstack.sel { outline: 2px solid var(--gold); }
@@ -321,6 +327,18 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
 .dots i.on { background: var(--gold); }
 
+@media (max-width: 560px) {
+  /* 좁으면 자원 이름은 접고 이모지와 숫자만 */
+  .rstack .rname { display: none; }
+  .hand { gap: 5px; }
+  .rstack { padding: 4px 7px; }
+  .bcard { padding: 7px 3px; }
+  .bcard .bname { font-size: 12px; }
+  .bcard .bpts { font-size: 10px; }
+  .bcard .bhead { gap: 3px; white-space: nowrap; }
+  .bcard .bcost .rc { width: 15px; height: 15px; font-size: 10px; }
+  .acts button { padding: 9px 12px; font-size: 13px; }
+}
 @media (max-width: 480px) {
   .pl { font-size: 11px; padding: 4px 7px; }
   .log { max-height: 56px; }

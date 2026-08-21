@@ -622,6 +622,11 @@
       if (free) s.freeRoads--; else pay(s, p, COST.road);
       e.road = pid; p.roads.push(id); p.left.road--;
       say(s, null, p.name + ' 도로' + (free ? ' (무료)' : ''));
+      // 공짜 도로가 남았는데 놓을 자리나 말이 없으면 남은 몫은 접는다
+      if (s.freeRoads > 0 && (!p.left.road || !legalRoads(s, pid).length)) {
+        s.freeRoads = 0;
+        say(s, null, '더 놓을 자리가 없어 남은 공짜 도로는 넘어갑니다.');
+      }
       updateLongest(s);
       checkWin(s, p);
       return OK;
@@ -826,9 +831,18 @@
   /* ---------------- 차례 넘기기 ---------------- */
 
   function endTurn(s, pid) {
+    if (s.phase === 'roll') return err('먼저 주사위를 굴려야 합니다.');
+    if (s.phase === 'discard') return err('버릴 카드를 먼저 고르세요.');
+    if (s.phase === 'robber') return err('먼저 도둑을 옮겨야 합니다.');
     if (s.phase !== 'main') return err('아직 차례를 끝낼 수 없습니다.');
     if (current(s).id !== pid) return err('차례가 아닙니다.');
-    if (s.freeRoads > 0) return err('공짜 도로 ' + s.freeRoads + '개가 남았습니다.');
+    if (s.freeRoads > 0) {
+      var p0 = current(s);
+      if (p0.left.road && legalRoads(s, pid).length) {
+        return err('공짜 도로 ' + s.freeRoads + '개가 남았습니다. 놓을 변을 눌러 주세요.');
+      }
+      s.freeRoads = 0;                                   // 놓을 데가 없으면 넘어간다
+    }
     s.trade = null; s.playedDev = false; s.dice = null;
     var n = s.players.length, guard = 0;
     do { s.turn = (s.turn + 1) % n; guard++; } while (s.players[s.turn].out && guard <= n);

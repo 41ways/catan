@@ -9,7 +9,7 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=7666387c">
+<link rel="stylesheet" href="style.css?v=365426a6">
 </head>
 <body>
 
@@ -137,7 +137,7 @@
   </header>
 
   <div id="boardBox" class="boardBox">
-    <svg id="board" viewBox="-300 -260 600 520" preserveAspectRatio="xMidYMid meet"></svg>
+    <svg id="board" viewBox="-280 -280 560 560" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
   <div id="log" class="log"></div>
@@ -207,6 +207,15 @@
         <tr><td>도시</td><td><i class="rc r-g">🌾</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i></td></tr>
         <tr><td>발전 카드</td><td><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i></td></tr>
       </table>
+      <h4>화면 보는 법</h4>
+      <p>· 위쪽 이름표에서 <b>「나」</b>가 붙은 것이 내 자리고, 왼쪽 색 띠가 내 말 색입니다.<br>
+      · 타일 위 그림이 그 땅에서 나는 자원입니다 —
+      <i class="rc r-b">🧱</i>벽돌 <i class="rc r-l">🪵</i>나무 <i class="rc r-w">🐑</i>양 <i class="rc r-g">🌾</i>밀 <i class="rc r-o">🪨</i>철.
+      아래 숫자는 그 타일이 나오는 주사위 눈이고, 빨간 <b>6·8</b>이 가장 자주 나옵니다.<br>
+      · <b>빗금 친 타일</b>에는 도둑이 앉아 있어 자원이 나오지 않습니다.<br>
+      · 내 차례에 <b>주황 점</b>은 마을을 놓을 수 있는 꼭짓점, <b>주황 점선</b>은 도로를 놓을 수 있는 변입니다.<br>
+      · 아래 <b>도로·마을·도시·발전 카드</b> 칸에 필요한 재료가 그려져 있고, <b>흐린 그림은 모자란 재료</b>입니다.
+      못 누르는 칸을 눌러 보면 이유를 알려줍니다.</p>
       <h4>규칙 몇 가지</h4>
       <p>· 마을은 내 도로에 이어서, 어느 마을과도 <b>두 변 이상</b> 떨어뜨려 짓습니다.<br>
       · <b>7</b>이 나오면 8장 이상 든 사람은 절반을 버리고, 도둑을 옮겨 한 장을 훔칩니다. 도둑이 앉은 타일은 생산이 멈춥니다.<br>
@@ -281,9 +290,9 @@
 </div>
 
 <script src="vendor/peerjs.min.js?v=ad5d8870"></script>
-<script src="rules.js?v=cc1b30a4"></script>
+<script src="rules.js?v=1700ecb1"></script>
 <script src="ai.js?v=7542adcb"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=f834cd71"></script>
+<script src="app.js?v=8714a9d8"></script>
 </body>
 </html>
