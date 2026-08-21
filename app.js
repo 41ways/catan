@@ -249,7 +249,7 @@
   // 판 좌표(viewBox)를 화면 좌표로 — viewBox 는 (0,0) 이 한가운데다
   function boardToScreen(x, y) {
     var svg = $('board'), rect = svg.getBoundingClientRect();
-    var scale = Math.min(rect.width / 560, rect.height / 560);
+    var scale = Math.min(rect.width / 584, rect.height / 584);
     return {
       x: rect.left + rect.width / 2 + x * scale,
       y: rect.top + rect.height / 2 + y * scale
@@ -362,7 +362,7 @@
     // 바다 — 섬 둘레만 얇게 두른다 (판이 잘리지 않게)
     (function () {
       var pts = [];
-      var Rr = S * 5.02;                     // 섬 바깥 반지름보다 살짝 크게
+      var Rr = S * 5.28;                     // 섬 바깥 반지름보다 살짝 크게
       for (var i = 0; i < 6; i++) {
         var a = Math.PI / 180 * (60 * i - 90);
         pts.push((Rr * Math.cos(a)).toFixed(1) + ',' + (Rr * Math.sin(a)).toFixed(1));
@@ -408,24 +408,55 @@
       }
     });
 
-    // 항구 — 바다 쪽 배지. 배지에서 점선이 닿은 두 꼭짓점이 항구 자리다
+    // 항구 — 바닷가 부두와 선착장 다리 두 개
     v.board.ports.forEach(function (port) {
       var a = v.board.verts[port.verts[0]], b = v.board.verts[port.verts[1]];
       var hx = v.board.hexes[port.hex];
-      var mx = (px(a.X) + px(b.X)) / 2, my = (py(a.Y) + py(b.Y)) / 2;
-      // 육지 반대쪽으로 밀어낸다
-      var ox = mx - px(hx.X), oy = my - py(hx.Y);
+      var ax = px(a.X), ay = py(a.Y), bx0 = px(b.X), by0 = py(b.Y);
+      var mx = (ax + bx0) / 2, my = (ay + by0) / 2;
+      var ox = mx - px(hx.X), oy = my - py(hx.Y);          // 바다 쪽 방향
       var len = Math.hypot(ox, oy) || 1;
-      var bx = mx + ox / len * 27, by = my + oy / len * 27;
-      [a, b].forEach(function (vv) {
-        g.appendChild(svgEl('line', { x1: px(vv.X), y1: py(vv.Y), x2: bx, y2: by, class: 'portLine' }));
-        g.appendChild(svgEl('circle', { cx: px(vv.X), cy: py(vv.Y), r: 3.4, class: 'portDot' }));
+      ox /= len; oy /= len;
+      var cx = mx + ox * 21, cy = my + oy * 21;            // 부두 중심
+
+      var pg = svgEl('g', { class: 'port' });
+
+      // 선착장 다리 — 꼭짓점에서 부두까지
+      [[ax, ay], [bx0, by0]].forEach(function (pt) {
+        var tx = cx - ox * 6, ty = cy - oy * 6;
+        var vx = tx - pt[0], vy = ty - pt[1];
+        var vl = Math.hypot(vx, vy) || 1;
+        var nx = -vy / vl, ny = vx / vl;                   // 다리에 수직인 방향
+        pg.appendChild(svgEl('line', { x1: pt[0], y1: pt[1], x2: tx, y2: ty, class: 'pierBase' }));
+        pg.appendChild(svgEl('line', { x1: pt[0], y1: pt[1], x2: tx, y2: ty, class: 'pierTop' }));
+        for (var t = 0.28; t <= 0.8; t += 0.26) {          // 널빤지
+          var wx = pt[0] + vx * t, wy = pt[1] + vy * t;
+          pg.appendChild(svgEl('line', {
+            x1: wx - nx * 3, y1: wy - ny * 3, x2: wx + nx * 3, y2: wy + ny * 3, class: 'plank'
+          }));
+        }
       });
-      var w = port.type === 'any' ? 32 : 44;
-      g.appendChild(svgEl('rect', { x: bx - w / 2, y: by - 10.5, width: w, height: 21, rx: 10, class: 'portB' }));
-      var pt = svgEl('text', { x: bx, y: by + 4, 'font-size': 11, class: 'portT' });
-      pt.textContent = port.type === 'any' ? '3:1' : EMOJI[port.type] + ' 2:1';
-      g.appendChild(pt);
+
+      // 부두 — 라벨이 읽히도록 수평으로 둔다
+      var w = port.type === 'any' ? 30 : 40, hgt = 20;
+      pg.appendChild(svgEl('rect', {
+        x: cx - w / 2, y: cy - hgt / 2, width: w, height: hgt, rx: 4, class: 'dock'
+      }));
+      pg.appendChild(svgEl('line', {
+        x1: cx - w / 2 + 3, y1: cy - hgt / 2 + 4.5, x2: cx + w / 2 - 3, y2: cy - hgt / 2 + 4.5, class: 'dockGrain'
+      }));
+      pg.appendChild(svgEl('line', {
+        x1: cx - w / 2 + 3, y1: cy + hgt / 2 - 4.5, x2: cx + w / 2 - 3, y2: cy + hgt / 2 - 4.5, class: 'dockGrain'
+      }));
+      var label = svgEl('text', { x: cx, y: cy + 4, 'font-size': 11.5, 'text-anchor': 'middle', class: 'portT' });
+      label.textContent = port.type === 'any' ? '3:1' : EMOJI[port.type] + '2:1';
+      pg.appendChild(label);
+      g.appendChild(pg);
+
+      // 항구가 걸리는 두 꼭짓점
+      [[ax, ay], [bx0, by0]].forEach(function (pt) {
+        g.appendChild(svgEl('circle', { cx: pt[0], cy: pt[1], r: 3.2, class: 'portDot' }));
+      });
     });
 
     // 도둑 — 숫자 칩 왼쪽에 세운다. 칩은 그대로 보인다
@@ -590,6 +621,11 @@
       d.appendChild(cardIc);
       if (p.devCount) { var dv = el('span', 'st', '⚙' + p.devCount); dv.title = '발전 카드'; d.appendChild(dv); }
       if (p.knights) { var kn = el('span', 'st', '⚔' + p.knights); kn.title = '쓴 기사'; d.appendChild(kn); }
+      // 남은 말 — 도로 / 마을 / 도시
+      var left = el('span', 'left');
+      left.title = '남은 말 — 도로 ' + p.left.road + ' · 마을 ' + p.left.settlement + ' · 도시 ' + p.left.city;
+      left.textContent = p.left.road + '/' + p.left.settlement + '/' + p.left.city;
+      d.appendChild(left);
       if (v.longest.p === p.id) d.appendChild(el('span', 'badge', '교역로'));
       if (v.army.p === p.id) d.appendChild(el('span', 'badge', '기사단'));
       box.appendChild(d);

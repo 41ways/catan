@@ -124,6 +124,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   font-size: 10px; font-weight: 800; color: var(--btnInk); background: var(--gold);
   border-radius: 5px; padding: 0 4px; letter-spacing: 0.05em;
 }
+.pl .left { color: var(--faint); font-size: 10.5px; letter-spacing: 0.02em; }
 .pl .badge { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 0 4px; color: var(--gold); }
 .pl.out { opacity: 0.45; }
 .dice { display: flex; gap: 5px; }
@@ -203,10 +204,15 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .edgeHit:hover { stroke-opacity: 1; stroke-dasharray: none; }
 .bld { stroke: #0b0e14; stroke-width: 1.2; }
 .bld.pick { cursor: pointer; }
-.portB { fill: #f2ead6; stroke: #0b0e14; stroke-width: 1; }
-.portT { font-weight: 800; fill: #2b2419; text-anchor: middle; }
-.portLine { stroke: #f2ead6; stroke-width: 2.2; stroke-dasharray: 3 3; opacity: 0.8; }
-.portDot { fill: #f2ead6; stroke: #0b0e14; stroke-width: 1.2; }
+/* 항구 — 나무 부두와 선착장 다리 */
+.port { pointer-events: none; }
+.dock { fill: #d8b483; stroke: #6b4a2a; stroke-width: 1.8; }
+.dockGrain { stroke: #6b4a2a; stroke-width: 0.9; opacity: 0.45; }
+.pierBase { stroke: #6b4a2a; stroke-width: 7; stroke-linecap: round; }
+.pierTop { stroke: #a9784b; stroke-width: 4.5; stroke-linecap: round; }
+.plank { stroke: #6b4a2a; stroke-width: 1.2; opacity: 0.75; }
+.portT { font-weight: 800; fill: #3a2713; }
+.portDot { fill: #e8d9b8; stroke: #6b4a2a; stroke-width: 1.4; }
 
 /* 로그 */
 .log {
