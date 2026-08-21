@@ -97,7 +97,14 @@
     // 새로 굴린 주사위면 가운데에 연출로 보여준다
     if (v.dice) {
       var dk = v.turnCount + '-' + v.dice[0] + v.dice[1];
-      if (App.diceKey !== dk) { App.diceKey = dk; showDiceRoll(v.dice); }
+      if (App.diceKey !== dk) {
+        App.diceKey = dk;
+        showDiceRoll(v.dice);
+        if (v.lastGain && v.lastGain.length) {
+          var gains = v.lastGain;
+          setTimeout(function () { flyGains(gains); }, 950);
+        }
+      }
     }
     render();
     if (v.phase === 'over') showOver(v);
@@ -229,6 +236,68 @@
         }, 1200);
       }
     }, 85);
+  }
+
+  /* ---------------- 카드 날아오기 ---------------- */
+
+  // 판 좌표(viewBox)를 화면 좌표로 — viewBox 는 (0,0) 이 한가운데다
+  function boardToScreen(x, y) {
+    var svg = $('board'), rect = svg.getBoundingClientRect();
+    var scale = Math.min(rect.width / 600, rect.height / 520);
+    return {
+      x: rect.left + rect.width / 2 + x * scale,
+      y: rect.top + rect.height / 2 + y * scale
+    };
+  }
+  function gainTarget(pid) {
+    if (pid === App.view.me) {
+      return null;                       // 자원별 손패 칩으로 — flyOne 에서 자원별로 찾는다
+    }
+    var chip = document.querySelector('.pl[data-pid="' + pid + '"]');
+    return chip ? chip.getBoundingClientRect() : null;
+  }
+  function flyGains(gains) {
+    var v = App.view;
+    if (!v) return;
+    var delay = 0;
+    gains.forEach(function (gGain) {
+      var hex = v.board.hexes[gGain.hex];
+      if (!hex) return;
+      var from = boardToScreen(px(hex.X), py(hex.Y));
+      for (var i = 0; i < gGain.n; i++) {
+        flyOne(from, gGain.p, gGain.res, delay);
+        delay += 90;
+      }
+    });
+  }
+  function flyOne(from, pid, resC, delay) {
+    setTimeout(function () {
+      var toRect;
+      if (pid === App.view.me) {
+        var stack = document.querySelector('.rstack[data-res="' + resC + '"]');
+        toRect = stack ? stack.getBoundingClientRect() : null;
+      } else {
+        var chip = document.querySelector('.pl[data-pid="' + pid + '"]');
+        toRect = chip ? chip.getBoundingClientRect() : null;
+      }
+      if (!toRect) return;
+      var card = el('div', 'flyCard', EMOJI[resC]);
+      var x0 = from.x - 13, y0 = from.y - 17;
+      card.style.left = x0 + 'px';
+      card.style.top = y0 + 'px';
+      document.body.appendChild(card);
+      var tx = toRect.left + toRect.width / 2 - 13 - x0;
+      var ty = toRect.top + toRect.height / 2 - 17 - y0;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          card.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(0.55)';
+        });
+      });
+      setTimeout(function () {
+        card.style.opacity = '0';
+        setTimeout(function () { card.remove(); }, 240);
+      }, 700);
+    }, delay);
   }
 
   /* ---------------- 판 그리기 ---------------- */
@@ -462,6 +531,7 @@
     box.innerHTML = '';
     v.players.forEach(function (p, i) {
       var d = el('div', 'pl' + (p.out ? ' out' : ''));
+      d.dataset.pid = p.id;
       d.style.borderLeftColor = PCOLOR[p.color];
       if ((v.phase === 'setup' ? v.setup.who === p.id : v.turn === i) && v.phase !== 'over') d.classList.add('turn');
       d.appendChild(el('span', 'nm', p.name));
@@ -498,6 +568,7 @@
       var n = p.res[c];
       var picked = App.discardSel.filter(function (x) { return x === c; }).length;
       var d = el('div', 'rstack' + (n ? '' : ' zero'));
+      d.dataset.res = c;
       d.appendChild(rchip(c));
       d.appendChild(el('span', null, discarding && picked ? (n - picked) + '/' + n : String(n)));
       if (discarding && n > 0) {
@@ -559,26 +630,22 @@
     var res = p && p.res ? p.res : { b: 0, l: 0, w: 0, g: 0, o: 0 };
     var buildable = myTurn && v.phase === 'main' && !v.trade && v.freeRoads === 0 && !(p && p.out);
 
-    /* 건설 비용 카드 — 언제나 보인다. 지금 지을 수 있으면 초록 테두리 */
-    var bar = el('div', 'buildBar');
-    box.appendChild(bar);
+    /* 짓기 블록 — 항상 자리를 지키고, 될 때만 켜진다 */
+    var buildRow = el('div', 'buildRow');
+    box.appendChild(buildRow);
     function afford(cost) {
       var need = {};
       cost.forEach(function (c) { need[c] = (need[c] || 0) + 1; });
       for (var c in need) if (res[c] < need[c]) return false;
       return true;
     }
-    function bcard(label, cost, usable, onClick, mode) {
-      var b = el('button', 'bcard');
-      b.appendChild(el('span', 'bname', label));
-      var cs = el('span', 'bcost');
-      cost.forEach(function (c) { cs.appendChild(rchip(c)); });
-      b.appendChild(cs);
+    function bbtn(label, usable, onClick, mode) {
+      var b = el('button', null, label);
       if (usable) b.classList.add('can');
       else b.disabled = true;
       if (mode && App.build === mode) b.classList.add('on');
       b.onclick = onClick;
-      bar.appendChild(b);
+      buildRow.appendChild(b);
       return b;
     }
     var canRoad = buildable && afford(['b', 'l']) && p.left.road > 0 && v.legal.roads.length > 0;
@@ -588,10 +655,10 @@
     function modeToggle(mode) {
       return function () { App.build = App.build === mode ? null : mode; render(); };
     }
-    bcard('도로', ['b', 'l'], canRoad, modeToggle('road'), 'road');
-    bcard('마을', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement');
-    bcard('도시', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city');
-    bcard('발전 카드', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); });
+    bbtn('도로', canRoad, modeToggle('road'), 'road');
+    bbtn('마을', canSett, modeToggle('settlement'), 'settlement');
+    bbtn('도시', canCity, modeToggle('city'), 'city');
+    bbtn('발전 카드', canDev, function () { act('buyDev', []); });
 
     var acts = el('div', 'acts');
     box.appendChild(acts);
@@ -952,6 +1019,22 @@
     if (!gn || !wn) { toast('주고받을 자원을 한 장 이상씩 골라 주세요.'); return; }
     $('tradeModal').classList.add('hidden');
     act('offerTrade', [g, w]);
+  };
+
+  // 건설비 가이드 접기 — 한 번 정하면 기억한다
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('catan.guide'); } catch (e) {}
+    var open = saved !== null ? saved === '1' : window.innerWidth > 640;
+    $('costGuide').classList.toggle('closed', !open);
+    $('cgChev').textContent = open ? '▾' : '▸';
+  })();
+  $('cgHead').onclick = function () {
+    var g = $('costGuide');
+    g.classList.toggle('closed');
+    var open = !g.classList.contains('closed');
+    $('cgChev').textContent = open ? '▾' : '▸';
+    try { localStorage.setItem('catan.guide', open ? '1' : '0'); } catch (e) {}
   };
 
   // 처음 온 사람에게는 안내를 먼저 보여준다

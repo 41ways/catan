@@ -233,7 +233,7 @@
       playedDev: false, boughtDev: [], freeRoads: 0,
       trade: null,
       longest: { p: null, len: 0 }, army: { p: null, n: 0 },
-      turnCount: 0, winner: null, log: [], logId: 0
+      turnCount: 0, winner: null, log: [], logId: 0, lastGain: null
     };
     s.board.hexes.forEach(function (h, i) { if (h.terrain === 'desert') s.robber = i; });
     s.setupOrder = [];
@@ -455,6 +455,7 @@
     if (current(s).id !== pid) return err('차례가 아닙니다.');
     var d1 = roll1(s), d2 = roll1(s), sum = d1 + d2;
     s.dice = [d1, d2];
+    s.lastGain = null;
     say(s, null, nameOf(s, pid) + ' 주사위 ' + d1 + ' + ' + d2 + ' = ' + sum);
     if (sum === 7) { startRobber(s, 'main'); return OK; }
     produce(s, sum);
@@ -465,6 +466,7 @@
   function produce(s, sum) {
     var want = {};   // pid -> res -> n
     var total = emptyRes();
+    var claims = [];                                    // {hex, p, res, n} — 연출용
     s.board.hexes.forEach(function (h, i) {
       if (h.number !== sum || i === s.robber || !h.res) return;
       h.corners.forEach(function (v) {
@@ -474,6 +476,7 @@
         want[b.p] = want[b.p] || emptyRes();
         want[b.p][h.res] += n;
         total[h.res] += n;
+        claims.push({ hex: i, p: b.p, res: h.res, n: n });
       });
     });
     // 은행이 모자라면 — 받을 사람이 하나뿐이면 남은 만큼, 여럿이면 아무도 못 받는다
@@ -489,15 +492,26 @@
       }
     });
     var any = false;
+    var received = {};                                  // pid -> res -> 실제 받은 장수
     s.players.forEach(function (p) {
       var w = want[p.id];
       if (!w) return;
       var got = emptyRes();
       RES.forEach(function (c) { if (w[c] > 0) got[c] = take(s, p, c, w[c]); });
+      received[p.id] = got;
       var t = resText(got);
       if (t) { say(s, null, p.name + ' ← ' + t); any = true; }
     });
     if (!any) say(s, null, '아무도 못 받았습니다.');
+    // 은행이 모자라 못 받은 몫은 연출에서도 뺀다
+    s.lastGain = [];
+    claims.forEach(function (cl) {
+      var left = received[cl.p] ? received[cl.p][cl.res] : 0;
+      if (left <= 0) return;
+      var take2 = Math.min(cl.n, left);
+      received[cl.p][cl.res] -= take2;
+      s.lastGain.push({ hex: cl.hex, p: cl.p, res: cl.res, n: take2 });
+    });
   }
 
   /* ---------------- 도둑 ---------------- */
@@ -862,6 +876,7 @@
       bank: JSON.parse(JSON.stringify(s.bank)),
       devLeft: s.devDeck.length,
       freeRoads: s.freeRoads, playedDev: s.playedDev,
+      lastGain: s.lastGain ? JSON.parse(JSON.stringify(s.lastGain)) : null,
       setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,
