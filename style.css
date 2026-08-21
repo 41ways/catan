@@ -167,14 +167,19 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .hex.t-hills { fill: #b06a3f; }
 .hex.t-mountains { fill: #7a8494; }
 .hex.t-desert { fill: #c9b48a; }
+/* 생산한 칸 — 카드가 나오기 직전에 밝아진다 */
+.hex.lit { animation: hexLit 0.85s ease-in-out infinite alternate; }
+@keyframes hexLit {
+  from { filter: brightness(1.06); stroke: var(--gold); stroke-width: 2.5; }
+  to   { filter: brightness(1.5) saturate(1.2); stroke: var(--gold); stroke-width: 5; }
+}
 .hex.robTarget { cursor: pointer; }
 .hex.robTarget:hover { filter: brightness(1.2); }
 .chipC { fill: #f2ead6; stroke: #0b0e14; stroke-width: 1; }
-.chipC, .chipT, .pip, .terrEmo, .robber { pointer-events: none; }
+.chipC, .chipT, .terrEmo, .robber { pointer-events: none; }
 .terrEmo { opacity: 0.95; }
 .chipT { font-weight: 800; fill: #2b2419; text-anchor: middle; }
 .chipT.hot { fill: #c0342b; }
-.pip { fill: #6b5f49; } .pip.hot { fill: #c0342b; }
 .robber { fill: #14171f; stroke: #e8ebf2; stroke-width: 1; opacity: 0.95; }
 .road { stroke-linecap: round; }
 .spotDot { fill: #e8a33d; stroke: #0b0e14; stroke-width: 1.4; cursor: pointer; }
@@ -242,11 +247,11 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 /* 날아오는 카드 */
 .flyCard {
   position: fixed; z-index: 60; pointer-events: none;
-  width: 26px; height: 34px; border-radius: 5px;
+  width: 30px; height: 40px; border-radius: 6px;
   background: #f2ead6; border: 1.5px solid #0b0e14;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
-  box-shadow: 0 3px 8px #0008;
-  transition: transform 0.72s cubic-bezier(0.45, 0.05, 0.4, 1), opacity 0.72s;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  box-shadow: 0 4px 12px #0008;
+  transition: transform 0.95s cubic-bezier(0.34, 0.02, 0.3, 1), opacity 0.3s;
 }
 .panelMsg b { color: var(--gold); }
 

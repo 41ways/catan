@@ -99,11 +99,9 @@
       var dk = v.turnCount + '-' + v.dice[0] + v.dice[1];
       if (App.diceKey !== dk) {
         App.diceKey = dk;
-        showDiceRoll(v.dice);
-        if (v.lastGain && v.lastGain.length) {
-          var gains = v.lastGain;
-          setTimeout(function () { flyGains(gains); }, 950);
-        }
+        var gains = (v.lastGain && v.lastGain.length) ? v.lastGain : null;
+        // 주사위가 화면에서 사라진 뒤에 해당 칸이 점등하고, 그 다음 카드가 온다
+        showDiceRoll(v.dice, function () { if (gains) flyGains(gains); });
       }
     }
     render();
@@ -212,7 +210,7 @@
     }
   }
   var diceSpin = null, diceHide = null;
-  function showDiceRoll(d) {
+  function showDiceRoll(d, done) {
     var ov = $('diceOverlay');
     ov.classList.remove('hidden'); ov.classList.remove('out');
     $('diceSum').textContent = ''; $('diceNote').textContent = '';
@@ -223,17 +221,21 @@
     diceSpin = setInterval(function () {
       dieFace(b1, 1 + Math.floor(Math.random() * 6));
       dieFace(b2, 1 + Math.floor(Math.random() * 6));
-      if (Date.now() - t0 > 620) {
+      if (Date.now() - t0 > 700) {
         clearInterval(diceSpin);
         b1.classList.remove('rolling'); b2.classList.remove('rolling');
         dieFace(b1, d[0]); dieFace(b2, d[1]);
         var sum = d[0] + d[1];
         $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
         $('diceNote').textContent = sum === 7 ? '도둑이 움직입니다' : sum + ' 타일에서 자원이 나옵니다';
+        // 눈을 충분히 읽을 시간을 준 뒤 사라진다
         diceHide = setTimeout(function () {
           ov.classList.add('out');
-          setTimeout(function () { ov.classList.add('hidden'); }, 300);
-        }, 1200);
+          setTimeout(function () {
+            ov.classList.add('hidden');
+            if (done) done();                    // 다 사라지고 나서 다음 연출
+          }, 340);
+        }, 1500);
       }
     }, 85);
   }
@@ -259,16 +261,30 @@
   function flyGains(gains) {
     var v = App.view;
     if (!v) return;
-    var delay = 0;
+
+    // 생산한 칸을 먼저 밝힌다
+    var hexes = {};
+    gains.forEach(function (gGain) { hexes[gGain.hex] = true; });
+    var lit = [];
+    Object.keys(hexes).forEach(function (hi) {
+      var poly = $('board').querySelector('.hex[data-hex="' + hi + '"]');
+      if (poly) { poly.classList.add('lit'); lit.push(poly); }
+    });
+
+    // 점등을 눈으로 확인할 틈을 주고 카드를 보낸다
+    var delay = 520;
     gains.forEach(function (gGain) {
       var hex = v.board.hexes[gGain.hex];
       if (!hex) return;
       var from = boardToScreen(px(hex.X), py(hex.Y));
       for (var i = 0; i < gGain.n; i++) {
         flyOne(from, gGain.p, gGain.res, delay);
-        delay += 90;
+        delay += 260;
       }
     });
+    setTimeout(function () {
+      lit.forEach(function (poly) { poly.classList.remove('lit'); });
+    }, delay + 700);
   }
   function flyOne(from, pid, resC, delay) {
     setTimeout(function () {
@@ -282,12 +298,12 @@
       }
       if (!toRect) return;
       var card = el('div', 'flyCard', EMOJI[resC]);
-      var x0 = from.x - 13, y0 = from.y - 17;
+      var x0 = from.x - 15, y0 = from.y - 20;
       card.style.left = x0 + 'px';
       card.style.top = y0 + 'px';
       document.body.appendChild(card);
-      var tx = toRect.left + toRect.width / 2 - 13 - x0;
-      var ty = toRect.top + toRect.height / 2 - 17 - y0;
+      var tx = toRect.left + toRect.width / 2 - 15 - x0;
+      var ty = toRect.top + toRect.height / 2 - 20 - y0;
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           card.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(0.55)';
@@ -295,8 +311,8 @@
       });
       setTimeout(function () {
         card.style.opacity = '0';
-        setTimeout(function () { card.remove(); }, 240);
-      }, 700);
+        setTimeout(function () { card.remove(); }, 300);
+      }, 900);
     }, delay);
   }
 
@@ -335,7 +351,7 @@
     // 땅 타일
     v.board.hexes.forEach(function (h) {
       var cx = px(h.X), cy = py(h.Y);
-      var hexEl = svgEl('polygon', { points: hexPoints(cx, cy), class: 'hex t-' + h.terrain });
+      var hexEl = svgEl('polygon', { points: hexPoints(cx, cy), class: 'hex t-' + h.terrain, 'data-hex': h.i });
       // 도둑 옮기기 — 내 차례면 타일을 누른다
       if (v.phase === 'robber' && myTurn && h.i !== v.robber) {
         hexEl.classList.add('robTarget');
@@ -343,25 +359,22 @@
       }
       g.appendChild(hexEl);
 
-      // 이 타일에서 뭐가 나오는지 — 이모지로 바로 보이게
-      var emo = svgEl('text', { x: cx, y: cy - 17, 'font-size': 17, 'text-anchor': 'middle', class: 'terrEmo' });
+      // 육각형 안을 위아래로 나눠 쓴다 — 위는 자원, 아래는 숫자 칩
+      var hasNum = !!h.number;
+      var emo = svgEl('text', {
+        x: cx, y: cy + (hasNum ? -12 : 6), 'font-size': hasNum ? 21 : 26,
+        'text-anchor': 'middle', class: 'terrEmo'
+      });
       emo.textContent = h.res ? EMOJI[h.res] : '\uD83C\uDF35';   // 사막은 🌵
       g.appendChild(emo);
 
-      if (h.number) {
+      if (hasNum) {
         var hot = h.number === 6 || h.number === 8;
-        g.appendChild(svgEl('circle', { cx: cx, cy: cy, r: 15, class: 'chipC' }));
-        var t = svgEl('text', { x: cx, y: cy + 4.5, 'font-size': 14, class: 'chipT' + (hot ? ' hot' : '') });
+        var ny = cy + 17;
+        g.appendChild(svgEl('circle', { cx: cx, cy: ny, r: 14, class: 'chipC' }));
+        var t = svgEl('text', { x: cx, y: ny + 5, 'font-size': 15, class: 'chipT' + (hot ? ' hot' : '') });
         t.textContent = h.number;
         g.appendChild(t);
-        // 확률 점
-        var pips = R.PIPS[h.number];
-        for (var d = 0; d < pips; d++) {
-          g.appendChild(svgEl('circle', {
-            cx: cx + (d - (pips - 1) / 2) * 4.2, cy: cy + 10.5, r: 1.5,
-            class: 'pip' + (hot ? ' hot' : '')
-          }));
-        }
       }
     });
 
@@ -388,7 +401,7 @@
     // 도둑
     (function () {
       var h = v.board.hexes[v.robber];
-      var cx = px(h.X), cy = py(h.Y) + (h.number ? 23 : 10);
+      var cx = px(h.X) - (h.number ? 26 : 0), cy = py(h.Y) + (h.number ? 20 : 8);
       var path = svgEl('path', {
         d: 'M' + cx + ' ' + (cy - 12) + ' a7 7 0 0 1 7 7 c0 3 -1.6 4.5 -1.6 7 h-10.8 c0 -2.5 -1.6 -4 -1.6 -7 a7 7 0 0 1 7 -7 z ' +
            'M' + (cx - 8) + ' ' + (cy + 4) + ' h16 l3 8 h-22 z',
