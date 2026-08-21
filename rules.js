@@ -961,6 +961,7 @@
     COST: COST, PIECES: PIECES, PIPS: PIPS, DEV_NAME: DEV_NAME, COLORS: COLORS,
     WIN_VP: WIN_VP, HAND_LIMIT: HAND_LIMIT, LONGEST_MIN: LONGEST_MIN, ARMY_MIN: ARMY_MIN,
     newGame: newGame, viewFor: viewFor, needsAction: needsAction, tradePending: tradePending,
+    makeBoard: makeBoard, mulberry: mulberry, shuffle: shuffle, emptyRes: emptyRes,
     playerOf: playerOf, current: current, handCount: handCount, canPay: canPay,
     vpOf: vpOf, vpFull: vpFull, roadLength: roadLength, tradeRate: tradeRate,
     legalSettlements: legalSettlements, legalCities: legalCities, legalRoads: legalRoads,

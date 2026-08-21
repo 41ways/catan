@@ -9,7 +9,7 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=db5d0c6a">
+<link rel="stylesheet" href="style.css?v=84434c0b">
 </head>
 <body>
 
@@ -196,32 +196,95 @@
   <div class="sheet tall">
     <h3>규칙</h3>
     <div class="rulesBody">
-      <h4>목표</h4>
-      <p>자기 차례에 <b>10점</b>을 먼저 넘기면 이깁니다. 마을 1점 · 도시 2점 · 최장 교역로 2점 · 최강 기사단 2점 · 승점 카드 1점.</p>
-      <h4>차례</h4>
-      <p>① 주사위 → 나온 숫자 타일 둘레의 마을(1장)·도시(2장)가 자원을 받습니다. ② 거래하고 짓습니다. ③ 차례를 넘깁니다.</p>
+      <h4>어떤 게임인가</h4>
+      <p>주사위가 자원을 나눠주고, 그 자원으로 도로·마을·도시를 지어 <b>점수를 쌓는</b> 게임입니다.
+      자기 차례에 <b>10점</b>을 먼저 넘기면 그 자리에서 이깁니다.</p>
+
+      <h4>점수 내는 법</h4>
+      <table class="costT">
+        <tr><td>마을</td><td class="ptd">1점</td><td class="rtd">꼭짓점에 짓습니다</td></tr>
+        <tr><td>도시</td><td class="ptd">2점</td><td class="rtd">내 마을을 올립니다</td></tr>
+        <tr><td>최장 교역로</td><td class="ptd">2점</td><td class="rtd">도로를 5개 이상 한 줄로</td></tr>
+        <tr><td>최강 기사단</td><td class="ptd">2점</td><td class="rtd">기사 카드를 3장 이상 사용</td></tr>
+        <tr><td>승점 카드</td><td class="ptd">1점</td><td class="rtd">발전 카드에서 나옵니다</td></tr>
+      </table>
+
       <h4>건설 비용</h4>
       <table class="costT">
-        <tr><td>도로</td><td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i></td></tr>
-        <tr><td>마을</td><td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i></td></tr>
-        <tr><td>도시</td><td><i class="rc r-g">🌾</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i></td></tr>
-        <tr><td>발전 카드</td><td><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i></td></tr>
+        <tr><td>도로</td>
+          <td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i></td>
+          <td class="rtd">내 도로·건물에 이어서. 한 사람당 15개</td></tr>
+        <tr><td>마을</td>
+          <td><i class="rc r-b">🧱</i><i class="rc r-l">🪵</i><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i></td>
+          <td class="rtd">내 도로 끝에. 5개</td></tr>
+        <tr><td>도시</td>
+          <td><i class="rc r-g">🌾</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i><i class="rc r-o">🪨</i></td>
+          <td class="rtd">내 마을 자리에. 4개</td></tr>
+        <tr><td>발전 카드</td>
+          <td><i class="rc r-w">🐑</i><i class="rc r-g">🌾</i><i class="rc r-o">🪨</i></td>
+          <td class="rtd">더미에서 한 장. 모두 25장</td></tr>
       </table>
+      <p class="hint">도시로 올리면 마을 말이 손으로 돌아와 다른 곳에 다시 쓸 수 있습니다.</p>
+
+      <h4>땅과 자원</h4>
+      <table class="costT">
+        <tr><td><i class="rc r-b">🧱</i>벽돌</td><td class="rtd">언덕에서 납니다. 도로·마을에 씁니다</td></tr>
+        <tr><td><i class="rc r-l">🪵</i>나무</td><td class="rtd">숲에서 납니다. 도로·마을에 씁니다</td></tr>
+        <tr><td><i class="rc r-w">🐑</i>양</td><td class="rtd">초원에서 납니다. 마을·발전 카드에 씁니다</td></tr>
+        <tr><td><i class="rc r-g">🌾</i>밀</td><td class="rtd">농지에서 납니다. 마을·도시·발전 카드에 씁니다</td></tr>
+        <tr><td><i class="rc r-o">🪨</i>철</td><td class="rtd">산에서 납니다. 도시·발전 카드에 씁니다</td></tr>
+      </table>
+      <p>사막은 아무것도 내지 않고, 도둑이 여기서 시작합니다.</p>
+
+      <h4>차례에 하는 일</h4>
+      <p><b>① 주사위</b> — 두 개를 굴려 합을 봅니다. 그 숫자가 적힌 타일 둘레에 마을이 있으면 자원 <b>1장</b>, 도시가 있으면 <b>2장</b>을 받습니다.
+      내가 굴려도 남이 받을 수 있고, 남이 굴려도 내가 받습니다.<br>
+      <b>② 거래와 건설</b> — 은행이나 다른 사람과 바꾸고, 짓고 싶은 것을 짓습니다. 순서와 횟수는 자유입니다.<br>
+      <b>③ 차례 넘기기</b> — 다음 사람으로 넘어갑니다.</p>
+
+      <h4>처음 두 바퀴 (준비)</h4>
+      <p>순서대로 마을 하나와 도로 하나를 놓고, 마지막 사람부터 <b>역순으로</b> 한 번 더 놓습니다.
+      두 번째 마을을 놓을 때 그 마을에 닿은 땅에서 자원을 <b>한 장씩</b> 받고 시작합니다.
+      그래서 두 번째 자리는 첫 자리에 없는 자원을 채우는 쪽이 좋습니다.</p>
+
+      <h4>자리 고르는 요령</h4>
+      <p>숫자 아래 점이 없어도, <b>6과 8이 가장 자주</b> 나오고 <b>2와 12가 가장 드뭅니다</b>(6·8은 빨갛게 표시됩니다).
+      숫자가 좋아도 자원이 한쪽으로 몰리면 짓고 싶은 걸 못 짓습니다. 세 타일의 자원이 서로 다른 자리가 대체로 좋습니다.</p>
+
+      <h4>7이 나오면 — 도둑</h4>
+      <p>자원이 하나도 나오지 않고, 손에 <b>8장 이상</b> 든 사람은 <b>절반</b>을 버립니다(소수점 버림 — 9장이면 4장).
+      그다음 주사위를 굴린 사람이 도둑을 옮기고, 그 타일에 닿은 사람 하나에게서 카드를 <b>한 장 몰래</b> 가져옵니다.
+      도둑이 앉은 타일(빗금)은 옮겨 갈 때까지 자원이 나오지 않습니다.</p>
+
+      <h4>거래</h4>
+      <p><b>은행과</b> — 같은 자원 <b>4장</b>을 아무 자원 <b>1장</b>으로. 항구를 잡으면 <b>3:1</b>, 자원별 항구면 그 자원만 <b>2:1</b>.
+      항구는 부두에서 다리가 닿은 <b>두 꼭짓점</b> 중 하나에 내 마을·도시가 있어야 쓸 수 있습니다.<br>
+      <b>사람과</b> — 내 차례에만 제안할 수 있습니다. 서로 <b>한 장 이상씩</b> 주고받아야 하고, 같은 자원을 맞바꿀 수는 없습니다.
+      받겠다고 한 사람 중에서 내가 고릅니다.</p>
+
+      <h4>발전 카드 25장</h4>
+      <table class="costT">
+        <tr><td>기사 14장</td><td class="rtd">도둑을 옮기고 한 장 훔칩니다. 3장 쓰면 최강 기사단 2점</td></tr>
+        <tr><td>승점 5장</td><td class="rtd">가진 것만으로 1점. 남에게는 안 보입니다</td></tr>
+        <tr><td>도로 건설 2장</td><td class="rtd">도로 2개를 공짜로</td></tr>
+        <tr><td>자원 발견 2장</td><td class="rtd">은행에서 원하는 자원 2장</td></tr>
+        <tr><td>독점 2장</td><td class="rtd">고른 자원을 모두에게서 전부</td></tr>
+      </table>
+      <p><b>산 턴에는 쓸 수 없고</b>, 한 턴에 <b>한 장만</b> 씁니다(승점 카드는 예외로 그냥 점수).</p>
+
       <h4>화면 보는 법</h4>
-      <p>· 위쪽 이름표에서 <b>「나」</b>가 붙은 것이 내 자리고, 왼쪽 색 띠가 내 말 색입니다.<br>
-      · 타일 위 그림이 그 땅에서 나는 자원입니다 —
-      <i class="rc r-b">🧱</i>벽돌 <i class="rc r-l">🪵</i>나무 <i class="rc r-w">🐑</i>양 <i class="rc r-g">🌾</i>밀 <i class="rc r-o">🪨</i>철.
-      아래 숫자는 그 타일이 나오는 주사위 눈이고, 빨간 <b>6·8</b>이 가장 자주 나옵니다.<br>
+      <p>· 위쪽 이름표에서 <b>「나」</b>가 붙은 것이 내 자리고, 왼쪽 색 띠가 내 말 색입니다. 옆의 <b>15/5/4</b>는 남은 도로·마을·도시 말입니다.<br>
+      · 타일 위 그림이 그 땅에서 나는 자원이고, 아래 숫자가 그 타일이 나오는 주사위 눈입니다.<br>
       · <b>빗금 친 타일</b>에는 도둑이 앉아 있어 자원이 나오지 않습니다.<br>
-      · 내 차례에 <b>주황 점</b>은 마을을 놓을 수 있는 꼭짓점, <b>주황 점선</b>은 도로를 놓을 수 있는 변입니다.<br>
-      · 아래 <b>도로·마을·도시·발전 카드</b> 칸에 필요한 재료가 그려져 있고, <b>흐린 그림은 모자란 재료</b>입니다.
-      못 누르는 칸을 눌러 보면 이유를 알려줍니다.</p>
-      <h4>규칙 몇 가지</h4>
-      <p>· 마을은 내 도로에 이어서, 어느 마을과도 <b>두 변 이상</b> 떨어뜨려 짓습니다.<br>
-      · <b>7</b>이 나오면 8장 이상 든 사람은 절반을 버리고, 도둑을 옮겨 한 장을 훔칩니다. 도둑이 앉은 타일은 생산이 멈춥니다.<br>
-      · 은행 교환은 4:1, 항구가 있으면 3:1 또는 그 자원 2:1. 항구 배지에서 점선이 닿은 <b>두 꼭짓점</b> 중 하나에 내 마을이 있으면 그 교환비를 씁니다.<br>
-      · 발전 카드는 산 다음 턴부터, 한 턴에 한 장. 승점 카드는 예외로 그냥 점수.<br>
-      · 도로 5개를 한 줄로 이으면 최장 교역로, 기사 3장을 쓰면 최강 기사단.</p>
+      · 내 차례에 <b>주황 점</b>은 마을 자리, <b>주황 점선</b>은 도로 자리입니다.<br>
+      · 아래 칸의 <b>흐린 그림은 모자란 재료</b>입니다. 못 누르는 칸을 눌러 보면 이유를 알려줍니다.</p>
+
+      <h4>자주 헷갈리는 것</h4>
+      <p>· 마을은 <b>어느 마을과도 두 변 이상</b> 떨어져야 합니다. 남의 마을 옆에도 못 짓습니다.<br>
+      · 도로는 남의 마을·도시를 <b>지나칠 수 없습니다</b>.<br>
+      · 도로가 5개여도 중간에 남의 마을이 서면 거기서 <b>끊어진 것</b>으로 셉니다.<br>
+      · 최장 교역로·최강 기사단은 <b>더 잘한 사람이 나오면 넘어갑니다</b>(같은 수면 그대로).<br>
+      · 10점이 되어도 <b>내 차례여야</b> 이깁니다.</p>
     </div>
     <div class="row">
       <button id="btnTourAgain" class="grow">처음 안내 다시 보기</button>
@@ -290,7 +353,7 @@
 </div>
 
 <script src="vendor/peerjs.min.js?v=ad5d8870"></script>
-<script src="rules.js?v=1700ecb1"></script>
+<script src="rules.js?v=c0b427b1"></script>
 <script src="ai.js?v=7542adcb"></script>
 <script src="net.js?v=46de61a8"></script>
 <script src="app.js?v=b2629397"></script>
