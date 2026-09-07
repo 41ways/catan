@@ -11,6 +11,8 @@
   --shadow: 0 2px 10px rgba(80,60,25,0.10);
   --wood0: #c9a06a; --wood1: #9c7040;
   --paper: #f7efdc; --paper2: #efe4c9; --paperLine: #cdb98d;
+  --display: "Do Hyeon", "Black Han Sans", "Apple SD Gothic Neo", sans-serif;   /* 나무 간판에 새긴 글씨 */
+  --serif: "Song Myung", "Nanum Myeongjo", "Apple Myungjo", Georgia, serif;     /* 옛 활자 — 부제와 설명 */
 }
 :root[data-theme="dark"] {
   --bg0: #1e242f; --bg1: #0d1017;
@@ -67,22 +69,91 @@ input, select {
 .grow { flex: 1; }
 
 /* ---------- 타이틀 ---------- */
-#title { display: flex; align-items: center; justify-content: center; padding: 24px; }
+#title { display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 100dvh; position: relative; }
+.kicker {
+  position: fixed; top: 18px; left: 18px; z-index: 10;
+  font-family: var(--serif); font-size: 12px; letter-spacing: 0.18em; color: var(--dim);
+}
 .twrap {
-  max-width: 420px; width: 100%; text-align: center;
-  display: flex; flex-direction: column; gap: 12px; align-items: center;
+  max-width: 440px; width: 100%; text-align: center;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
 }
-.isle { width: min(300px, 78vw); filter: drop-shadow(0 6px 16px rgba(0,0,0,0.25)); }
+/* 섬 — 바다 원반 위에 떠 있다 */
+.hero { position: relative; width: min(340px, 84vw); aspect-ratio: 260 / 175; margin-bottom: 4px; }
+.seaDisc {
+  position: absolute; left: 6%; right: 6%; top: 12%; bottom: 4%; border-radius: 50%;
+  background:
+    radial-gradient(60% 55% at 50% 45%, rgba(255,255,255,0.22), transparent 70%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.10) 0 2px, transparent 2px 11px),
+    radial-gradient(circle at 50% 50%, #8fb6d4, #5f8db0 70%, #4a7597);
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,0.18), inset 0 -14px 30px rgba(0,0,0,0.25), 0 16px 34px rgba(0,0,0,0.35);
+  animation: seaSpin 40s linear infinite;
+}
+@keyframes seaSpin { to { background-position: 0 0, 40px 40px, 0 0; } }
+.isle {
+  position: absolute; left: 50%; top: 2%; width: 88%; transform: translateX(-50%);
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
+  animation: isleFloat 5s ease-in-out infinite;
+}
+@keyframes isleFloat { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+.tboat { animation: bob 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.tboat.b2 { animation-delay: -1.3s; }
+/* 주사위 두 개 */
+.tdice { position: absolute; right: 2%; bottom: -6%; display: flex; gap: 8px; }
+.tdie {
+  width: 34px; height: 34px; border-radius: 8px; padding: 5px;
+  background: linear-gradient(160deg, #fffdf6, #efe6d2); border: 1.5px solid #2b2419;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4), inset 0 -3px 0 rgba(0,0,0,0.1);
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+}
+.tdie i { width: 6px; height: 6px; border-radius: 50%; background: #2b2419; place-self: center; }
+.tdie.d1 { transform: rotate(-12deg); }
+.tdie.d1 i:nth-child(1) { grid-area: 1/1; } .tdie.d1 i:nth-child(2) { grid-area: 1/3; }
+.tdie.d1 i:nth-child(3) { grid-area: 3/1; } .tdie.d1 i:nth-child(4) { grid-area: 3/3; }
+.tdie.d2 { transform: rotate(10deg) translateY(4px); }
+.tdie.d2 i:nth-child(1) { grid-area: 1/1; } .tdie.d2 i:nth-child(2) { grid-area: 1/3; }
+.tdie.d2 i:nth-child(3) { grid-area: 2/1; } .tdie.d2 i:nth-child(4) { grid-area: 2/3; }
+.tdie.d2 i:nth-child(5) { grid-area: 3/1; } .tdie.d2 i:nth-child(6) { grid-area: 3/3; }
+
+/* 로고 — 나무 간판에 새긴 금박 글씨 */
 .logo {
-  margin: 4px 0 0; font-size: clamp(46px, 13vw, 66px); font-weight: 800;
-  letter-spacing: 0.06em; color: var(--ink);
-  text-shadow: 0 2px 0 var(--gold), 0 3px 12px rgba(0,0,0,0.18);
+  margin: 6px 0 0; font-family: var(--display); font-weight: 400;
+  font-size: clamp(64px, 17vw, 92px); line-height: 1; letter-spacing: 0.08em;
 }
-.tagline { margin: 0 0 10px; color: var(--dim); font-size: 14.5px; }
-button.big { width: 100%; max-width: 300px; padding: 14px; font-size: 16px; border-radius: 12px; }
-button.ghost2 { background: transparent; color: var(--dim); }
+.logo span {
+  background: linear-gradient(180deg, #fff1c4 0%, #e6b64a 45%, #b4761f 60%, #f2d38a 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #5c3b20) drop-shadow(0 4px 0 #3b2412) drop-shadow(0 8px 14px rgba(0,0,0,0.35));
+}
+.sublogo {
+  margin: -2px 0 0; font-family: var(--serif); font-size: 15px; letter-spacing: 0.42em; color: var(--dim);
+  padding-left: 0.42em;
+}
+.sublogo::before, .sublogo::after { content: '—'; margin: 0 0.6em; opacity: 0.5; }
+.tagline { margin: 6px 0 4px; font-family: var(--serif); color: var(--dim); font-size: 14.5px; line-height: 1.7; }
+
+/* 자원 카드 부채 */
+.tfan { display: flex; align-items: flex-end; justify-content: center; margin: 4px 0 10px; padding-left: 22px; }
+.tfan .resCard {
+  margin-left: -22px; cursor: default; transition: transform 0.2s;
+  transform: rotate(calc((var(--i) - var(--mid, 2)) * 7deg)) translateY(calc(var(--i) * var(--i) * 1px - var(--i) * 4px + 4px));
+}
+.tfan .resCard:nth-child(1), .tfan .resCard:nth-child(5) { transform: rotate(calc((var(--i) - 2) * 7deg)) translateY(6px); }
+.tfan .resCard:nth-child(2), .tfan .resCard:nth-child(4) { transform: rotate(calc((var(--i) - 2) * 7deg)) translateY(1px); }
+.tfan .resCard:nth-child(3) { transform: translateY(-1px); }
+.tfan .resCard:hover { transform: translateY(-12px) scale(1.06); z-index: 2; }
+.tfan .resCard:not(:last-child) .resFace, .tfan .resCard:not(:last-child) .resName { visibility: visible; }
+
+.tfoot { margin: 2px 0 0; font-family: var(--serif); font-size: 12px; letter-spacing: 0.06em; color: var(--faint); }
+button.big { width: 100%; max-width: 300px; padding: 14px; font-size: 17px; border-radius: 12px; font-family: var(--display); letter-spacing: 0.08em; }
+button.ghost2 { background: transparent; color: var(--dim); box-shadow: none; }
 button.ghost2:hover { color: var(--ink); }
 .back { align-self: flex-start; padding: 0; margin-bottom: -4px; }
+
+@media (max-width: 480px) {
+  .hero { width: 78vw; }
+  .tdice { display: none; }
+}
 
 /* 테마 슬라이드 토글 */
 .tswitch {
@@ -970,12 +1041,9 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   color: #f2d9a8; border-color: #2b1a10;
 }
 
-/* 타이틀 섬이 살짝 떠 있다 */
-.isle { animation: floatIsle 5s ease-in-out infinite; }
-@keyframes floatIsle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sway, .sheep, .wave, .boat, .isle, .bigDie.land { animation: none !important; }
+  .sway, .sheep, .wave, .boat, .isle, .tboat, .seaDisc, .bigDie.land { animation: none !important; }
 }
 
 
@@ -1062,3 +1130,28 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 :root[data-theme="dark"] .overRow { background: rgba(255,255,255,0.06); }
 
 @media (prefers-reduced-motion: reduce) { .smoke, .footprint, .think b, .chipG.chipPop { animation: none !important; } }
+
+
+/* 표제 서체 — 큰 글씨 여기저기 */
+.bnTitle, .sweepText, .diceSum, #overTitle, .modal h3, .sheet h3, .tourStep h3 {
+  font-family: var(--display); font-weight: 400; letter-spacing: 0.04em;
+}
+.bnTitle { font-size: 24px; }
+.diceSum { font-size: 38px; }
+.bnSub, .diceNote, .panelFoot { font-family: var(--serif); }
+
+
+/* 타이틀 카드 부채는 손패 접기 규칙에서 제외 — 항상 다섯 장 */
+.tfan .resCard { display: flex !important; }
+@media (max-width: 560px) {
+  .tfan { padding-left: 16px; margin: 2px 0 8px; }
+  .tfan .resCard { width: 46px; height: 64px; margin-left: -16px; }
+  .tfan .resCard .resFace { font-size: 22px; }
+  .tfan .resCard .resName { font-size: 9px; }
+  .tfan .resCard:not(:last-child) .resFace, .tfan .resCard:not(:last-child) .resName { visibility: visible; }
+  .logo { font-size: clamp(56px, 19vw, 72px); }
+  .tagline { font-size: 13.5px; }
+  .kicker { top: 14px; left: 14px; font-size: 11px; }
+}
+#title, .twrap, .hero { max-width: 100%; }
+#title { overflow: hidden; }

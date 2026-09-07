@@ -9,7 +9,10 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=dffad9f6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Song+Myung&display=swap">
+<link rel="stylesheet" href="style.css?v=407ffec0">
 </head>
 <body>
 
@@ -20,48 +23,61 @@
     <span class="track"><span class="knob"></span></span>
     <span class="tlabel" id="themeLabel">라이트</span>
   </label>
+  <span class="kicker">보드게임 · 2–4인 · 온라인</span>
+
   <div class="twrap">
-    <svg class="isle" viewBox="0 0 260 158" aria-hidden="true">
-      <g stroke="#0b0e14" stroke-width="1.5">
-        <polygon points="107.5,10 130,23 130,49 107.5,62 85,49 85,23" fill="#7a8494"/>
-        <polygon points="152.5,10 175,23 175,49 152.5,62 130,49 130,23" fill="#79a352"/>
-        <polygon points="85,49 107.5,62 107.5,88 85,101 62.5,88 62.5,62" fill="#2e5d3f"/>
-        <polygon points="130,49 152.5,62 152.5,88 130,101 107.5,88 107.5,62" fill="#c9b48a"/>
-        <polygon points="175,49 197.5,62 197.5,88 175,101 152.5,88 152.5,62" fill="#d9a441"/>
-        <polygon points="107.5,88 130,101 130,127 107.5,140 85,127 85,101" fill="#d9a441"/>
-        <polygon points="152.5,88 175,101 175,127 152.5,140 130,127 130,101" fill="#b06a3f"/>
-      </g>
-      <circle cx="175" cy="75" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
-      <text x="175" y="79" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">8</text>
-      <circle cx="107.5" cy="36" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
-      <text x="107.5" y="40" text-anchor="middle" font-size="10" font-weight="800" fill="#2b2419">5</text>
-      <circle cx="152.5" cy="114" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
-      <text x="152.5" y="118" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">6</text>
-      <text x="130" y="80" text-anchor="middle" font-size="13">🌵</text>
-      <text x="152.5" y="40" text-anchor="middle" font-size="12">🐑</text>
-      <text x="85" y="80" text-anchor="middle" font-size="12">🪵</text>
-      <text x="107.5" y="119" text-anchor="middle" font-size="12">🌾</text>
-      <line x1="130" y1="101" x2="152.5" y2="88" stroke="#0b0e14" stroke-width="7" stroke-linecap="round"/>
-      <line x1="130" y1="101" x2="152.5" y2="88" stroke="#d95f4a" stroke-width="4.5" stroke-linecap="round"/>
-      <g transform="translate(130,101)">
-        <rect x="-6" y="-2" width="12" height="9" fill="#d95f4a" stroke="#0b0e14"/>
-        <path d="M-8.5 -1.2 L0 -9 L8.5 -1.2 z" fill="#8f3527" stroke="#0b0e14"/>
-      </g>
-      <g transform="translate(36,116) rotate(-12)">
-        <rect x="-13" y="-13" width="26" height="26" rx="6" fill="#f2ead6" stroke="#0b0e14" stroke-width="1.5"/>
-        <circle cx="-6" cy="-6" r="2.4" fill="#2b2419"/><circle cx="6" cy="-6" r="2.4" fill="#2b2419"/>
-        <circle cx="-6" cy="6" r="2.4" fill="#2b2419"/><circle cx="6" cy="6" r="2.4" fill="#2b2419"/>
-      </g>
-      <g transform="translate(226,124) rotate(14)">
-        <rect x="-13" y="-13" width="26" height="26" rx="6" fill="#f2ead6" stroke="#0b0e14" stroke-width="1.5"/>
-        <circle cx="0" cy="0" r="2.4" fill="#2b2419"/>
-        <circle cx="-6.5" cy="-6.5" r="2.4" fill="#2b2419"/><circle cx="6.5" cy="6.5" r="2.4" fill="#2b2419"/>
-      </g>
-    </svg>
-    <h1 class="logo">카탄</h1>
-    <p class="tagline">자원을 모아 섬을 개척하고, 10점을 먼저 넘기는 사람이 승리.</p>
+    <!-- 바다 위에 떠 있는 섬 -->
+    <div class="hero">
+      <div class="seaDisc"></div>
+      <svg class="isle" viewBox="0 0 260 158" aria-hidden="true">
+        <g stroke="#0b0e14" stroke-width="1.5">
+          <polygon points="107.5,10 130,23 130,49 107.5,62 85,49 85,23" fill="#7a8494"/>
+          <polygon points="152.5,10 175,23 175,49 152.5,62 130,49 130,23" fill="#79a352"/>
+          <polygon points="85,49 107.5,62 107.5,88 85,101 62.5,88 62.5,62" fill="#2e5d3f"/>
+          <polygon points="130,49 152.5,62 152.5,88 130,101 107.5,88 107.5,62" fill="#c9b48a"/>
+          <polygon points="175,49 197.5,62 197.5,88 175,101 152.5,88 152.5,62" fill="#d9a441"/>
+          <polygon points="107.5,88 130,101 130,127 107.5,140 85,127 85,101" fill="#d9a441"/>
+          <polygon points="152.5,88 175,101 175,127 152.5,140 130,127 130,101" fill="#b06a3f"/>
+        </g>
+        <circle cx="175" cy="75" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+        <text x="175" y="79" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">8</text>
+        <circle cx="107.5" cy="36" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+        <text x="107.5" y="40" text-anchor="middle" font-size="10" font-weight="800" fill="#2b2419">5</text>
+        <circle cx="152.5" cy="114" r="9.5" fill="#f2ead6" stroke="#0b0e14"/>
+        <text x="152.5" y="118" text-anchor="middle" font-size="10" font-weight="800" fill="#c0342b">6</text>
+        <text x="130" y="80" text-anchor="middle" font-size="13">🌵</text>
+        <text x="152.5" y="40" text-anchor="middle" font-size="12">🐑</text>
+        <text x="85" y="80" text-anchor="middle" font-size="12">🪵</text>
+        <text x="107.5" y="119" text-anchor="middle" font-size="12">🌾</text>
+        <line x1="130" y1="101" x2="152.5" y2="88" stroke="#0b0e14" stroke-width="7" stroke-linecap="round"/>
+        <line x1="130" y1="101" x2="152.5" y2="88" stroke="#d95f4a" stroke-width="4.5" stroke-linecap="round"/>
+        <g transform="translate(130,101)">
+          <rect x="-6" y="-2" width="12" height="9" fill="#d95f4a" stroke="#0b0e14"/>
+          <path d="M-8.5 -1.2 L0 -9 L8.5 -1.2 z" fill="#8f3527" stroke="#0b0e14"/>
+        </g>
+        <text class="tboat" x="34" y="60" font-size="14">⛵</text>
+        <text class="tboat b2" x="222" y="44" font-size="12">⛵</text>
+      </svg>
+      <!-- 주사위 두 개가 굴러 나와 있다 -->
+      <div class="tdice"><span class="tdie d1"><i></i><i></i><i></i><i></i></span><span class="tdie d2"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+    </div>
+
+    <h1 class="logo"><span>카탄</span></h1>
+    <p class="sublogo">섬의 개척자들</p>
+    <p class="tagline">주사위가 나눠주는 자원으로 길을 놓고 마을을 세워,<br>10점을 먼저 넘기는 사람이 승리합니다.</p>
+
+    <!-- 자원 카드 다섯 장이 부채처럼 -->
+    <div class="tfan" aria-hidden="true">
+      <div class="resCard r-b" style="--i:0;--mid:2"><span class="resFace">🧱</span><span class="resName">벽돌</span></div>
+      <div class="resCard r-l" style="--i:1;--mid:2"><span class="resFace">🪵</span><span class="resName">나무</span></div>
+      <div class="resCard r-w" style="--i:2;--mid:2"><span class="resFace">🐑</span><span class="resName">양</span></div>
+      <div class="resCard r-g" style="--i:3;--mid:2"><span class="resFace">🌾</span><span class="resName">밀</span></div>
+      <div class="resCard r-o" style="--i:4;--mid:2"><span class="resFace">🪨</span><span class="resName">철</span></div>
+    </div>
+
     <button id="btnPlay" class="primary big">시작하기</button>
     <button id="btnRules" class="big ghost2">가이드</button>
+    <p class="tfoot">기본판 · 도시와 기사 확장 · 혼자는 봇과, 여럿은 방 코드로</p>
   </div>
 </section>
 
