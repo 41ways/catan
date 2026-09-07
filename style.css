@@ -880,3 +880,100 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 @media (prefers-reduced-motion: reduce) {
   .sweepFig, .sweepText, .bldDrop, .roadDraw line, .confetti i, .shake { animation: none !important; }
 }
+
+
+/* ==================== 더 꾸미기 — 풍경·물결·배·트레이·명패 ==================== */
+
+/* 타일 풍경 — 은은하게, 이모지와 숫자를 방해하지 않는다 */
+.scene { pointer-events: none; opacity: 0.55; }
+.scene .trunk { fill: #5a3b22; }
+.scene .leaf  { fill: #1f5a34; }
+.scene .leaf2 { fill: #2e7a48; }
+.scene .grass { fill: none; stroke: #3f7a2f; stroke-width: 1.3; stroke-linecap: round; }
+.scene .wool  { fill: #f4f1e6; stroke: #7a7160; stroke-width: 0.7; }
+.scene .head  { fill: #4b3f33; }
+.scene .legs  { stroke: #4b3f33; stroke-width: 1; }
+.scene .furrow { fill: none; stroke: #a9791f; stroke-width: 1.4; opacity: 0.8; }
+.scene .ear    { fill: none; stroke: #6f4f12; stroke-width: 1.1; stroke-linecap: round; }
+.scene .mound  { fill: none; stroke: #7a4a2b; stroke-width: 1.6; opacity: 0.8; }
+.scene .mound2 { fill: none; stroke: #7a4a2b; stroke-width: 1.2; opacity: 0.6; }
+.scene .kiln   { fill: #b0603c; stroke: #5a2f1a; stroke-width: 0.9; }
+.scene .brickLine { stroke: #5a2f1a; stroke-width: 0.7; fill: none; }
+.scene .peak { fill: #6f7b8c; stroke: #3d4653; stroke-width: 0.8; }
+.scene .snow { fill: #f3f5f8; }
+.scene .dune { fill: none; stroke: #b9974f; stroke-width: 1.6; opacity: 0.7; }
+.scene .cactus { fill: none; stroke: #3f7a3a; stroke-width: 2.4; stroke-linecap: round; }
+/* 나무는 바람에 살랑인다 */
+.sway { animation: sway 3.2s ease-in-out infinite; }
+.tree:nth-child(2) { animation-delay: -0.8s; }
+.tree:nth-child(3) { animation-delay: -1.6s; }
+.tree:nth-child(4) { animation-delay: -2.2s; }
+.tree:nth-child(5) { animation-delay: -1.1s; }
+@keyframes sway { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+/* 양이 천천히 풀을 뜯는다 */
+.sheep { animation: graze 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.sheep:nth-of-type(2) { animation-delay: -2s; }
+@keyframes graze { 0%,100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
+
+/* 물결 */
+.wave { fill: none; stroke: #fff; stroke-width: 1.1; opacity: 0.32; stroke-linecap: round;
+  stroke-dasharray: 6 94; animation: waveFlow 7s linear infinite; }
+@keyframes waveFlow { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+/* 항구의 배가 흔들린다 */
+.boat { pointer-events: none; animation: bob 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-2px) rotate(3deg); } }
+
+/* 주사위 트레이 — 가죽 바닥에 나무 테두리 */
+.diceTray {
+  padding: 18px 26px; border-radius: 22px;
+  background:
+    radial-gradient(90% 80% at 50% 40%, rgba(255,255,255,0.06), transparent 70%),
+    repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0 2px, transparent 2px 6px),
+    #3b2a22;
+  border: 7px solid #8a5a33;
+  box-shadow: inset 0 0 0 2px #5c3b20, inset 0 10px 24px rgba(0,0,0,0.55), 0 14px 30px rgba(0,0,0,0.5);
+}
+.bigDie {
+  background: linear-gradient(160deg, #fffdf6, #efe6d2);
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12), inset 0 2px 0 rgba(255,255,255,0.8), 0 8px 18px rgba(0,0,0,0.55);
+}
+.bigDie i { background: radial-gradient(circle at 35% 35%, #4a3b2c, #1d150e); box-shadow: inset 0 1px 1px rgba(255,255,255,0.15); }
+/* 멈출 때 트레이에 툭 떨어진다 */
+.bigDie.land { animation: dieLand 0.32s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes dieLand { 0% { transform: translateY(-14px) scale(1.08); } 60% { transform: translateY(2px) scale(0.97); } 100% { transform: none; } }
+
+/* 큰 알림 — 나무 명패에 놋쇠 못 */
+.bigNewsInner {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,0.35), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.018) 0 1px, transparent 1px 4px),
+    var(--paper);
+  border: 3px solid #8a5a33;
+  box-shadow: inset 0 0 0 2px #d9b98a, inset 0 0 0 3px #5c3b20, 0 14px 40px rgba(0,0,0,0.4);
+  position: relative;
+}
+.bigNewsInner::before, .bigNewsInner::after {
+  content: ''; position: absolute; width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe7a8, #b0782e 60%, #6b4416);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  top: 8px;
+}
+.bigNewsInner::before { left: 8px; } .bigNewsInner::after { right: 8px; }
+.bigNewsInner.award { border-color: #b4761f; }
+
+/* 뒷면 카드 — 짜임 무늬와 나침반 */
+.flyCard.back {
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 3px, transparent 3px 7px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,0.12) 0 3px, transparent 3px 7px),
+    #5a3b2a;
+  color: #f2d9a8; border-color: #2b1a10;
+}
+
+/* 타이틀 섬이 살짝 떠 있다 */
+.isle { animation: floatIsle 5s ease-in-out infinite; }
+@keyframes floatIsle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sway, .sheep, .wave, .boat, .isle, .bigDie.land { animation: none !important; }
+}

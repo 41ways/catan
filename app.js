@@ -902,6 +902,8 @@
         clearInterval(diceSpin);
         b1.classList.remove('rolling'); b2.classList.remove('rolling');
         dieFace(b1, d[0]); dieFace(b2, d[1]);
+        b1.classList.add('land'); b2.classList.add('land');
+        setTimeout(function () { b1.classList.remove('land'); b2.classList.remove('land'); }, 400);
         var sum = d[0] + d[1];
         if (sum === 7) screenShake();
         $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
@@ -1060,6 +1062,77 @@
     }, delay);
   }
 
+  /* ---------------- 타일 풍경 — 지형마다 작은 그림 ---------------- */
+
+  // 육각형 안에 은은하게 깔리는 풍경. 이모지·숫자 칩 아래에 놓인다.
+  function scenery(terrain, cx, cy) {
+    var sg = svgEl('g', { class: 'scene scene-' + terrain });
+    function P(d, cls, extra) {
+      var a = { d: d, class: cls };
+      if (extra) for (var k in extra) a[k] = extra[k];
+      return svgEl('path', a);
+    }
+    var i, x, y;
+    if (terrain === 'forest') {
+      // 나무 다섯 그루 — 세모 잎에 짧은 줄기
+      var spots = [[-30, 12], [-14, 26], [24, 18], [34, -4], [-32, -14]];
+      for (i = 0; i < spots.length; i++) {
+        x = cx + spots[i][0]; y = cy + spots[i][1];
+        var tree = svgEl('g', { class: 'tree sway', style: 'transform-origin: ' + x + 'px ' + (y + 8) + 'px' });
+        tree.appendChild(P('M' + (x - 1.2) + ' ' + (y + 8) + ' h2.4 v-5 h-2.4 z', 'trunk'));
+        tree.appendChild(P('M' + x + ' ' + (y - 9) + ' l7 10 h-14 z', 'leaf'));
+        tree.appendChild(P('M' + x + ' ' + (y - 4) + ' l5.5 8 h-11 z', 'leaf2'));
+        sg.appendChild(tree);
+      }
+    } else if (terrain === 'pasture') {
+      // 풀 포기와 양 두 마리
+      var tufts = [[-28, 20], [-10, 30], [12, 28], [30, 14], [-34, -6], [30, -12], [6, -30]];
+      for (i = 0; i < tufts.length; i++) {
+        x = cx + tufts[i][0]; y = cy + tufts[i][1];
+        sg.appendChild(P('M' + (x - 4) + ' ' + y + ' q2 -6 4 0 q2 -6 4 0', 'grass'));
+      }
+      [[-18, 6], [22, -2]].forEach(function (p2) {
+        x = cx + p2[0]; y = cy + p2[1];
+        var sheep = svgEl('g', { class: 'sheep' });
+        sheep.appendChild(svgEl('ellipse', { cx: x, cy: y, rx: 5.5, ry: 3.6, class: 'wool' }));
+        sheep.appendChild(svgEl('circle', { cx: x + 5, cy: y - 0.5, r: 1.9, class: 'head' }));
+        sheep.appendChild(P('M' + (x - 3) + ' ' + (y + 3) + ' v2.5 M' + (x + 2) + ' ' + (y + 3) + ' v2.5', 'legs'));
+        sg.appendChild(sheep);
+      });
+    } else if (terrain === 'fields') {
+      // 이랑 세 줄에 이삭
+      for (i = 0; i < 3; i++) {
+        y = cy - 18 + i * 17;
+        sg.appendChild(P('M' + (cx - 34) + ' ' + y + ' q17 -5 34 0 q17 5 34 0', 'furrow'));
+        for (var k = -28; k <= 28; k += 14) {
+          sg.appendChild(P('M' + (cx + k) + ' ' + (y - 1) + ' v-7 m-2 3 l2 -2 l2 2', 'ear'));
+        }
+      }
+    } else if (terrain === 'hills') {
+      // 낮은 둔덕과 벽돌 가마
+      sg.appendChild(P('M' + (cx - 40) + ' ' + (cy + 22) + ' q22 -22 44 0 q16 -16 36 0', 'mound'));
+      sg.appendChild(P('M' + (cx - 38) + ' ' + (cy - 2) + ' q18 -18 36 0', 'mound2'));
+      var kx = cx + 18, ky = cy - 8;
+      sg.appendChild(svgEl('rect', { x: kx - 8, y: ky - 4, width: 16, height: 11, rx: 1.5, class: 'kiln' }));
+      sg.appendChild(P('M' + (kx - 8) + ' ' + (ky + 1) + ' h16 M' + (kx - 8) + ' ' + (ky + 5) + ' h16 M' + (kx - 3) + ' ' + (ky - 4) + ' v5 M' + (kx + 3) + ' ' + (ky + 1) + ' v4', 'brickLine'));
+    } else if (terrain === 'mountains') {
+      // 봉우리 셋, 눈 덮인 꼭대기
+      var peaks = [[-22, 8, 22], [4, -2, 30], [26, 12, 20]];
+      for (i = 0; i < peaks.length; i++) {
+        x = cx + peaks[i][0]; y = cy + peaks[i][1]; var h = peaks[i][2];
+        sg.appendChild(P('M' + (x - h * 0.75) + ' ' + (y + 14) + ' L' + x + ' ' + (y + 14 - h) + ' L' + (x + h * 0.75) + ' ' + (y + 14) + ' z', 'peak'));
+        sg.appendChild(P('M' + (x - h * 0.22) + ' ' + (y + 14 - h * 0.7) + ' L' + x + ' ' + (y + 14 - h) + ' L' + (x + h * 0.22) + ' ' + (y + 14 - h * 0.7) + ' l-3 3 l-3 -2 l-3 2 z', 'snow'));
+      }
+    } else if (terrain === 'desert') {
+      // 모래 언덕과 선인장
+      sg.appendChild(P('M' + (cx - 42) + ' ' + (cy + 18) + ' q20 -14 42 -2 q18 -10 42 4', 'dune'));
+      sg.appendChild(P('M' + (cx - 44) + ' ' + (cy + 30) + ' q24 -10 46 0 q20 -8 42 2', 'dune'));
+      var cxx = cx - 22, cyy = cy - 6;
+      sg.appendChild(P('M' + cxx + ' ' + (cyy + 14) + ' v-22 M' + (cxx - 6) + ' ' + (cyy - 2) + ' v6 q0 3 3 3 h3 M' + (cxx + 6) + ' ' + (cyy - 6) + ' v7 q0 3 -3 3 h-3', 'cactus'));
+    }
+    return sg;
+  }
+
   /* ---------------- 판 그리기 ---------------- */
 
   function hexPoints(cx, cy) {
@@ -1105,6 +1178,30 @@
         pts.push((Rr * Math.cos(a)).toFixed(1) + ',' + (Rr * Math.sin(a)).toFixed(1));
       }
       g.appendChild(svgEl('polygon', { points: pts.join(' '), class: 'seaRing' }));
+      // 물결 — 섬 바깥 바다에 짧은 곡선들이 흘러간다
+      var waves = svgEl('g', { class: 'waves' });
+      var rows = [-236, -196, 200, 236, -120, 120];
+      rows.forEach(function (yy, ri) {
+        var d = '';
+        for (var xx = -280; xx <= 280; xx += 28) {
+          d += (xx === -280 ? 'M' : 'L') + xx + ' ' + yy + ' q7 -4 14 0 q7 4 14 0';
+        }
+        var w = svgEl('path', { d: d, class: 'wave', pathLength: 100 });
+        w.style.animationDelay = (ri * -0.9) + 's';
+        waves.appendChild(w);
+      });
+      // 섬 안쪽에는 물결이 보이지 않게 — 섬 모양으로 구멍을 낸다
+      var mask = svgEl('mask', { id: 'seaOnly' });
+      mask.appendChild(svgEl('rect', { x: -300, y: -300, width: 600, height: 600, fill: '#fff' }));
+      var islePts = [];
+      for (var mi = 0; mi < 6; mi++) {
+        var ma = Math.PI / 180 * (60 * mi - 90);
+        islePts.push((S * 4.55 * Math.cos(ma)).toFixed(1) + ',' + (S * 4.55 * Math.sin(ma)).toFixed(1));
+      }
+      mask.appendChild(svgEl('polygon', { points: islePts.join(' '), fill: '#000' }));
+      svg.querySelector('defs').appendChild(mask);
+      waves.setAttribute('mask', 'url(#seaOnly)');
+      g.appendChild(waves);
     })();
 
     // 땅 타일 — 한 그룹으로 묶어 섬 전체에 그림자
@@ -1125,6 +1222,7 @@
         hexEl.addEventListener('click', function () { clickRobber(h.i); });
       }
       isle.appendChild(hexEl);
+      isle.appendChild(scenery(h.terrain, cx, cy));
       // 인쇄된 종이 타일 같은 빛
       isle.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), fill: 'url(#tileLight)', class: 'tileLight' }));
       if (robbedHere) {
@@ -1197,6 +1295,12 @@
       var label = svgEl('text', { x: cx, y: cy + 4, 'font-size': 11.5, 'text-anchor': 'middle', class: 'portT' });
       label.textContent = port.type === 'any' ? '3:1' : EMOJI[port.type] + '2:1';
       pg.appendChild(label);
+      // 배 한 척이 부두 바깥에서 흔들린다
+      var bxs = cx + ox * 22, bys = cy + oy * 22;
+      var boat = svgEl('text', { x: bxs, y: bys + 5, 'font-size': 14, 'text-anchor': 'middle', class: 'boat' });
+      boat.textContent = '\u26F5';
+      boat.style.animationDelay = ((port.edge % 5) * -0.7) + 's';
+      pg.appendChild(boat);
       g.appendChild(pg);
 
       // 항구가 걸리는 두 꼭짓점
