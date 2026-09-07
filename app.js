@@ -24,7 +24,7 @@
   var SVGNS = 'http://www.w3.org/2000/svg';
 
   var App = {
-    ext: false,
+    ext: false, feed: [], feedBusy: false, feedTimer: null, bigTimer: null, lastLogId: undefined,
     mode: 'solo', me: 'me', net: null, seats: [], state: null, view: null,
     started: false, skill: 1, botTimer: null,
     build: null,               // 'road' | 'settlement' | 'city' — 짓기 모드
@@ -119,10 +119,19 @@
         showDiceRoll(v.dice, function () {
           if (isSeven) litRobber();
           else if (gains) flyGains(gains);
+          else showBlocked(v);
         });
       }
     }
     render();
+    // 지난 차례에 무슨 일이 있었는지 한 줄씩 풀어 준다
+    pushFeed(v);
+    renderNow(v);
+    if (prev && prev.turn !== v.turn && v.phase !== 'over') announceTurn(v);
+    if (v.lastTrade) playTradeAnim(v);
+    if (v.lastBank) playBankAnim(v);
+    if (v.lastRobber) playRobberAnim(v);
+    if (v.lastSteal) playStealAnim(v);
     if (v.phase === 'over') showOver(v);
     scheduleBot();
   }
@@ -166,12 +175,18 @@
     clearTimeout(App.botTimer);
     // 거래 응답이 먼저다
     var pend = eng.tradePending(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
-    if (pend.length) { App.botTimer = setTimeout(function () { botTradeReply(pend[0]); }, 600); return; }
+    if (pend.length) {
+      var w = 700 + Math.min(1400, App.feed.length * 340);
+      App.botTimer = setTimeout(function () { botTradeReply(pend[0]); }, w);
+      return;
+    }
     // 제안이 떠 있는데 응답이 다 모였으면 사람(제안자)의 몫 — 봇은 제안하지 않는다
     if (s.trade) return;
     var need = eng.needsAction(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (!need.length) return;
-    var wait = s.phase === 'setup' ? 550 : s.phase === 'roll' ? 650 : 520;
+    var wait = s.phase === 'setup' ? 620 : s.phase === 'roll' ? 700 : 620;
+    // 아직 중계할 줄이 남아 있으면 그만큼 늦춘다 (한 수씩 눈에 들어오게)
+    wait += Math.min(1800, App.feed.length * 380 + (App.feedBusy ? 260 : 0));
     App.botTimer = setTimeout(function () { botStep(need[0]); }, wait);
   }
 
@@ -224,6 +239,368 @@
     }
     if (!r || !r.ok) { toast('봇이 막혔습니다.'); return; }
     pushViews();
+  }
+
+  /* ---------------- 중계 — 로그를 한 줄씩 풀어 보여준다 ---------------- */
+
+  // 로그 한 줄이 무슨 일인지 알아본다 (표시 전용)
+  function readLine(text) {
+    var t = text;
+    function has() {
+      for (var i = 0; i < arguments.length; i++) if (t.indexOf(arguments[i]) >= 0) return true;
+      return false;
+    }
+    if (has('승리')) return { icon: '\uD83C\uDFC6', hold: 1800, big: true };
+    if (has('야만족 상륙', '\u2694')) return { icon: '\u2694\uFE0F', hold: 1600, big: true };
+    if (has('최장 교역로')) return { icon: '\uD83D\uDEE3\uFE0F', hold: 1400, big: true };
+    if (has('최강 기사단')) return { icon: '\uD83D\uDEE1\uFE0F', hold: 1400, big: true };
+    if (has('수도 건설', '수도를 빼앗')) return { icon: '\uD83C\uDFF0', hold: 1400, big: true };
+    if (has('카탄의 수호자', '수호자')) return { icon: '\uD83C\uDF96\uFE0F', hold: 1500, big: true };
+    if (has('약탈')) return { icon: '\uD83D\uDD25', hold: 1300, big: true };
+    if (has('주사위')) return { icon: '\uD83C\uDFB2', hold: 700 };
+    if (has('거래 성사')) return { icon: '\uD83E\uDD1D', hold: 1300 };
+    if (has('거래 제안')) return { icon: '\uD83D\uDCAC', hold: 1000 };
+    if (has('은행과')) return { icon: '\uD83C\uDFE6', hold: 900 };
+    if (has('도둑')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1000 };
+    if (has('버림', '버리기')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1000 };
+    if (has('도시')) return { icon: '\uD83C\uDFDB\uFE0F', hold: 1100 };
+    if (has('마을')) return { icon: '\uD83C\uDFE0', hold: 1000 };
+    if (has('도로')) return { icon: '\uD83D\uDEE4\uFE0F', hold: 850 };
+    if (has('기사')) return { icon: '\u2694\uFE0F', hold: 1000 };
+    if (has('성벽')) return { icon: '\uD83E\uDDF1', hold: 1000 };
+    if (has('진보카드', '발전 카드')) return { icon: '\uD83C\uDCCF', hold: 1000 };
+    if (has('단계 —')) return { icon: '\uD83D\uDCDA', hold: 1100 };
+    if (has('\u2190', '첫 자원', '거둬', '받았', '얻', '캤')) return { icon: '\uD83D\uDCE6', hold: 850 };
+    if (has('항구')) return { icon: '\u2693', hold: 1000 };
+    if (has('못 받', '모자라')) return { icon: '\u26A0\uFE0F', hold: 1100 };
+    if (has('차례')) return { icon: '\u23ED\uFE0F', hold: 700 };
+    return { icon: '\u2022', hold: 800 };
+  }
+
+  // 그 줄이 누구 이야기인지 — 이름으로 찾아 색을 입힌다
+  function lineOwner(v, text) {
+    var best = null;
+    v.players.forEach(function (p) {
+      if (text.indexOf(p.name) === 0) best = p;
+    });
+    if (best) return best;
+    v.players.forEach(function (p) {
+      if (!best && text.indexOf(p.name) >= 0) best = p;
+    });
+    return best;
+  }
+
+  function pushFeed(v) {
+    var lines = v.log || [];
+    if (App.lastLogId === undefined) {
+      // 첫 화면에서는 지난 줄을 몰아 보여주지 않는다
+      App.lastLogId = lines.length ? lines[lines.length - 1].i : -1;
+      return;
+    }
+    lines.forEach(function (l) {
+      if (l.i <= App.lastLogId) return;
+      App.lastLogId = l.i;
+      if (l.text.indexOf('— ') === 0 && l.text.indexOf('차례') > 0) return;  // 큰 배너가 알려 준다
+      var info = readLine(l.text);
+      App.feed.push({ text: l.text, icon: info.icon, hold: info.hold, big: info.big, owner: lineOwner(v, l.text) });
+    });
+    if (App.feed.length > 14) App.feed = App.feed.slice(-14);   // 너무 밀리면 앞을 버린다
+    pumpFeed();
+  }
+
+  function pumpFeed() {
+    if (App.feedBusy || !App.feed.length) return;
+    App.feedBusy = true;
+    var item = App.feed.shift();
+    showNow(item.icon, item.text, item.owner);
+    if (item.big) showBigNews(item);
+    // 밀려 있으면 조금씩 빨리 넘긴다
+    var hold = item.hold * (App.feed.length > 5 ? 0.45 : App.feed.length > 2 ? 0.7 : 1);
+    clearTimeout(App.feedTimer);
+    App.feedTimer = setTimeout(function () {
+      App.feedBusy = false;
+      if (App.feed.length) pumpFeed();
+      else renderNow(App.view);          // 할 말이 없으면 지금 상황으로 돌아간다
+    }, Math.max(320, hold));
+  }
+
+  function showNow(icon, text, owner) {
+    var bar = $('nowBar'), dot = $('nowDot'), txt = $('nowText');
+    bar.classList.remove('step');
+    void bar.offsetWidth;                 // 애니메이션 다시 태우기
+    bar.classList.add('step');
+    dot.style.background = owner ? (PCOLOR[owner.color] || 'var(--faint)') : 'var(--faint)';
+    txt.textContent = icon + '  ' + text;
+    bar.classList.toggle('mine', !!(owner && App.view && owner.id === App.view.me));
+  }
+
+  // 지금 누가 무엇을 할 차례인지 (중계할 게 없을 때)
+  function renderNow(v) {
+    if (!v || App.feedBusy) return;
+    var bar = $('nowBar'), dot = $('nowDot'), txt = $('nowText');
+    var actor = null, msg = '';
+    var mine = isMyTurn(v);
+
+    if (v.phase === 'over') {
+      var w = playerIn(v, v.winner);
+      showNow('\uD83C\uDFC6', w ? (w.name + ' 승리!') : '판이 끝났습니다.', w);
+      return;
+    }
+    if (v.trade) {
+      actor = playerIn(v, v.trade.from);
+      var waiting = v.players.filter(function (p) {
+        return !p.out && p.id !== v.trade.from && !v.trade.replies[p.id];
+      });
+      var yes = Object.keys(v.trade.replies).filter(function (k) { return v.trade.replies[k] === 'yes'; });
+      var mineOffer = v.trade.from === v.me;
+      if (waiting.length) {
+        msg = (mineOffer ? '내 거래 제안' : actor.name + '의 거래 제안') + ' — ' +
+          waiting.map(function (p) { return p.name; }).join(', ') + '의 답을 기다리는 중';
+      } else if (yes.length) {
+        msg = (mineOffer ? '내 제안' : actor.name + '의 제안') + ' — ' +
+          yes.map(function (k) { return (playerIn(v, k) || {}).name; }).join(', ') + '이(가) 받겠다고 했습니다' +
+          (mineOffer ? '. 누구와 바꿀지 고르세요' : '');
+      } else {
+        msg = (mineOffer ? '내 제안' : actor.name + '의 제안') + ' — 모두 거절했습니다' +
+          (mineOffer ? '. 조건을 바꾸거나 제안을 거두세요' : '');
+      }
+      if (!mineOffer && !v.trade.replies[v.me]) msg = actor.name + '의 제안 — 받을지 말지 고르세요';
+    } else if (v.phase === 'setup') {
+      actor = playerIn(v, v.setup.who);
+      var second = v.setup.idx >= v.players.length;
+      var what = (isExt(v) && second) ? '도시' : '마을';
+      msg = (actor && actor.id === v.me)
+        ? '내 차례 — ' + (v.setup.sub === 'settlement' ? what + '을(를) 놓으세요' : '도로를 놓으세요')
+        : (actor ? actor.name : '?') + '이(가) 자리를 고르는 중';
+    } else if (v.phase === 'discard') {
+      var who = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid); }).filter(Boolean);
+      actor = who[0] || null;
+      msg = v.mustDiscard[v.me]
+        ? '내 손패가 넘칩니다 — ' + v.mustDiscard[v.me] + '장을 골라 버리세요'
+        : who.map(function (p) { return p.name; }).join(', ') + '이(가) 카드를 버리는 중';
+    } else if (v.phase === 'robber') {
+      actor = v.players[v.turn];
+      msg = mine ? '내 차례 — 도둑을 옮길 타일을 누르세요' : actor.name + '이(가) 도둑을 옮기는 중';
+    } else if (v.phase === 'roll') {
+      actor = v.players[v.turn];
+      msg = mine ? '내 차례 — 주사위를 굴리세요' : actor.name + '이(가) 주사위를 굴릴 차례';
+    } else {
+      actor = v.players[v.turn];
+      if (v.freeRoads > 0) msg = mine ? '공짜 도로 ' + v.freeRoads + '개를 놓으세요' : actor.name + '이(가) 도로를 놓는 중';
+      else msg = mine ? '내 차례 — 짓거나 거래하세요' : actor.name + '이(가) 짓고 거래하는 중';
+    }
+
+    bar.classList.remove('step');
+    dot.style.background = actor ? (PCOLOR[actor.color] || 'var(--faint)') : 'var(--faint)';
+    txt.textContent = msg;
+    bar.classList.toggle('mine', mine && !v.trade);
+    // 남을 기다리는 중이면 점 세 개
+    var wait = bar.querySelector('.nowWait');
+    var waitingForOther = !mine || v.phase === 'discard' || !!v.trade;
+    if (waitingForOther && !wait) {
+      var w2 = el('span', 'nowWait');
+      w2.appendChild(el('i')); w2.appendChild(el('i')); w2.appendChild(el('i'));
+      bar.appendChild(w2);
+    } else if (!waitingForOther && wait) wait.remove();
+  }
+
+  // 큰 소식 — 잠깐 화면 가운데에. 업적은 더 오래, 더 크게
+  function showBigNews(item) {
+    var box = $('bigNews'), inner = box.querySelector('.bigNewsInner');
+    var text = item.text, title = text, sub = '';
+    var m = text.indexOf(' — ');
+    if (m > 0) { title = text.slice(0, m); sub = text.slice(m + 3); }
+
+    var award = false;
+    if (text.indexOf('최장 교역로') >= 0) {
+      award = true;
+      title = (item.owner ? item.owner.name : '') + ' 최장 교역로!';
+      sub = '가장 긴 길을 이었습니다 — 2점';
+    } else if (text.indexOf('최강 기사단') >= 0) {
+      award = true;
+      title = (item.owner ? item.owner.name : '') + ' 최강 기사단!';
+      sub = '기사를 가장 많이 썼습니다 — 2점';
+    } else if (text.indexOf('수도 건설') >= 0) {
+      award = true;
+      sub = '수도를 세웠습니다 — 2점';
+    } else if (text.indexOf('수도를 빼앗') >= 0) {
+      award = true;
+      sub = '더 높이 개발해 수도를 가져왔습니다 — 2점';
+    } else if (text.indexOf('야만족 상륙') >= 0) {
+      title = '야만족 상륙!';
+      sub = text.replace(/^.*상륙!\s*/, '');
+    } else if (text.indexOf('수호자') >= 0) {
+      award = true;
+      title = (item.owner ? item.owner.name : '') + ' 카탄의 수호자!';
+      sub = '야만족을 막아낸 공로 — 승점 1';
+    } else if (text.indexOf('약탈') >= 0) {
+      title = '도시가 약탈당했습니다';
+      sub = text.replace('의 도시가 약탈당해 마을로 내려갔습니다.', ' — 도시가 마을로');
+    }
+
+    $('bnIcon').textContent = item.icon;
+    $('bnTitle').textContent = title;
+    $('bnTitle').style.color = item.owner ? (PCOLOR[item.owner.color] || '') : '';
+    $('bnSub').textContent = sub;
+    inner.classList.toggle('award', award);
+    box.classList.remove('hidden', 'out');
+    clearTimeout(App.bigTimer);
+    App.bigTimer = setTimeout(function () {
+      box.classList.add('out');
+      setTimeout(function () {
+        box.classList.add('hidden');
+        $('bnTitle').style.color = '';
+        inner.classList.remove('award');
+      }, 300);
+    }, award ? 2200 : 1500);
+  }
+
+  // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
+  function announceTurn(v) {
+    var p = v.players[v.turn];
+    if (!p) return;
+    var box = $('bigNews');
+    $('bnIcon').textContent = p.id === v.me ? '\uD83D\uDC4B' : '\u23ED\uFE0F';
+    $('bnTitle').textContent = p.id === v.me ? '내 차례' : p.name + '의 차례';
+    $('bnTitle').style.color = PCOLOR[p.color] || '';
+    $('bnSub').textContent = p.id === v.me ? '주사위를 굴려 시작하세요' : '';
+    box.classList.remove('hidden', 'out');
+    clearTimeout(App.bigTimer);
+    App.bigTimer = setTimeout(function () {
+      box.classList.add('out');
+      setTimeout(function () {
+        box.classList.add('hidden');
+        $('bnTitle').style.color = '';
+      }, 300);
+    }, p.id === v.me ? 1100 : 800);
+  }
+
+  // 거래 — 카드가 두 사람 사이를 실제로 건너간다
+  function playTradeAnim(v) {
+    var t = v.lastTrade;
+    if (!t) return;
+    var key = t.turn + ':' + t.a + '>' + t.b + ':' + JSON.stringify(t.give) + JSON.stringify(t.want);
+    if (App.tradeKey === key) return;
+    App.tradeKey = key;
+    var ra = chipRect(t.a), rb = chipRect(t.b);
+    if (!ra || !rb) return;
+    var delay = 0;
+    Object.keys(t.give).forEach(function (c) {
+      for (var i = 0; i < t.give[c]; i++) { flyBetween(ra, rb, c, delay); delay += 130; }
+    });
+    Object.keys(t.want).forEach(function (c) {
+      for (var i = 0; i < t.want[c]; i++) { flyBetween(rb, ra, c, delay); delay += 130; }
+    });
+  }
+  function chipRect(pid) {
+    var e = document.querySelector('.pl[data-pid="' + pid + '"]');
+    if (!e) return null;
+    var r = e.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height, host: e };
+  }
+  // 은행 교환 — 내 손패에서 나갔다가 들어온다
+  function playBankAnim(v) {
+    var t = v.lastBank;
+    if (!t) return;
+    var key = t.turn + ':' + t.p + ':' + t.give + t.rate + t.get;
+    if (App.bankKey === key) return;
+    App.bankKey = key;
+    var from = chipRect(t.p) || null;
+    var toStack = document.querySelector('.rstack[data-res="' + t.get + '"]');
+    var giveStack = document.querySelector('.rstack[data-res="' + t.give + '"]');
+    if (t.p === v.me && giveStack && toStack) {
+      var g = giveStack.getBoundingClientRect(), h = toStack.getBoundingClientRect();
+      var bankPt = { left: (g.left + h.left) / 2, top: g.top - 70, width: 0, height: 0 };
+      for (var i = 0; i < t.rate; i++) flyBetween(g, bankPt, t.give, i * 90);
+      flyBetween(bankPt, h, t.get, t.rate * 90 + 160);
+    }
+  }
+
+  function flyBetween(fromRect, toRect, resC, delay) {
+    setTimeout(function () {
+      var card = el('div', 'flyCard', EMOJI[resC]);
+      var x0 = fromRect.left + (fromRect.width || 0) / 2 - 15;
+      var y0 = fromRect.top + (fromRect.height || 0) / 2 - 20;
+      card.style.left = x0 + 'px';
+      card.style.top = y0 + 'px';
+      document.body.appendChild(card);
+      var tx = toRect.left + (toRect.width || 0) / 2 - 15 - x0;
+      var ty = toRect.top + (toRect.height || 0) / 2 - 20 - y0;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          card.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(0.6)';
+        });
+      });
+      setTimeout(function () {
+        card.style.opacity = '0';
+        setTimeout(function () { card.remove(); }, 280);
+        if (toRect.host) {
+          toRect.host.classList.add('gotIt');
+          setTimeout(function () { toRect.host.classList.remove('gotIt'); }, 520);
+        }
+      }, 780);
+    }, delay);
+  }
+
+  // 도둑 — 어디서 어디로 갔는지 미끄러져 보여준다
+  function playRobberAnim(v) {
+    var t = v.lastRobber;
+    if (!t) return;
+    var key = t.turn + ':' + t.from + '>' + t.to + ':' + t.p;
+    if (App.robberKey === key) return;
+    App.robberKey = key;
+    if (t.from === t.to) return;
+    var a = v.board.hexes[t.from], b = v.board.hexes[t.to];
+    if (!a || !b) return;
+    var from = boardToScreen(px(a.X) - 27, py(a.Y) + 19);
+    var to = boardToScreen(px(b.X) - 27, py(b.Y) + 19);
+    var ghost = el('div', 'robberGhost', '\uD83D\uDD75\uFE0F');
+    ghost.style.left = (from.x - 16) + 'px';
+    ghost.style.top = (from.y - 16) + 'px';
+    document.body.appendChild(ghost);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        ghost.style.transform = 'translate(' + (to.x - from.x) + 'px,' + (to.y - from.y) + 'px)';
+      });
+    });
+    setTimeout(function () {
+      ghost.style.opacity = '0';
+      setTimeout(function () { ghost.remove(); }, 260);
+      // 도착한 칸을 잠깐 붉게
+      var poly = $('board').querySelector('.hex[data-hex="' + t.to + '"]');
+      if (poly) {
+        poly.classList.add('litRob');
+        setTimeout(function () { poly.classList.remove('litRob'); }, 1600);
+      }
+    }, 760);
+  }
+
+  // 강탈 — 빼앗긴 사람에게서 훔친 사람에게 뒷면 카드가 건너간다
+  function playStealAnim(v) {
+    var t = v.lastSteal;
+    if (!t) return;
+    var key = t.turn + ':' + t.thief + '<' + t.victim;
+    if (App.stealKey === key) return;
+    App.stealKey = key;
+    var rv = chipRect(t.victim), rt = chipRect(t.thief);
+    if (!rv || !rt) return;
+    setTimeout(function () {
+      var card = el('div', 'flyCard back', '?');
+      var x0 = rv.left + rv.width / 2 - 15, y0 = rv.top + rv.height / 2 - 20;
+      card.style.left = x0 + 'px';
+      card.style.top = y0 + 'px';
+      document.body.appendChild(card);
+      var tx = rt.left + rt.width / 2 - 15 - x0, ty = rt.top + rt.height / 2 - 20 - y0;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          card.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(0.6)';
+        });
+      });
+      setTimeout(function () {
+        card.style.opacity = '0';
+        setTimeout(function () { card.remove(); }, 280);
+      }, 800);
+    }, 900);
   }
 
   /* ---------------- 주사위 연출 ---------------- */
@@ -303,9 +680,35 @@
     else if (isMyTurn(v)) toast('7 — 도둑을 옮길 타일을 누르세요.');
   }
 
+  // 도둑이 막아 못 받은 타일 — 붉게 짚어 준다
+  function showBlocked(v) {
+    var b = v.blocked;
+    if (!b) return;
+    var key = b.turn + ':' + b.hex;
+    if (App.blockedKey === key) return;
+    App.blockedKey = key;
+    var poly = $('board').querySelector('.hex[data-hex="' + b.hex + '"]');
+    if (poly) {
+      poly.classList.add('litRob');
+      setTimeout(function () { poly.classList.remove('litRob'); }, 2200);
+    }
+    var hex = v.board.hexes[b.hex];
+    if (!hex) return;
+    var pt = boardToScreen(px(hex.X), py(hex.Y));
+    var mark = el('div', 'blockMark', '\uD83D\uDEAB');
+    mark.style.left = (pt.x - 20) + 'px';
+    mark.style.top = (pt.y - 20) + 'px';
+    document.body.appendChild(mark);
+    setTimeout(function () {
+      mark.style.opacity = '0';
+      setTimeout(function () { mark.remove(); }, 300);
+    }, 1700);
+  }
+
   function flyGains(gains) {
     var v = App.view;
     if (!v) return;
+    showBlocked(v);
 
     // 생산한 칸을 먼저 밝힌다
     var hexes = {};
@@ -357,6 +760,14 @@
       setTimeout(function () {
         card.style.opacity = '0';
         setTimeout(function () { card.remove(); }, 300);
+        // 받는 쪽을 잠깐 밝혀 어디로 갔는지 확실히 보이게
+        var host = (pid === App.view.me)
+          ? document.querySelector('.rstack[data-res="' + resC + '"]')
+          : document.querySelector('.pl[data-pid="' + pid + '"]');
+        if (host) {
+          host.classList.add('gotIt');
+          setTimeout(function () { host.classList.remove('gotIt'); }, 520);
+        }
       }, 900);
     }, delay);
   }
@@ -575,21 +986,27 @@
       g.appendChild(path);
     })();
 
-    // 도로 — 테두리 있는 띠에 흰 점선 차선을 얹는다
+    // 도로 — 갓돌을 두른 길바닥에 짧은 침목을 깐다
     v.board.edges.forEach(function (e) {
       if (!e.road) return;
       var a = v.board.verts[e.a], b = v.board.verts[e.b];
-      var p = playerIn(v, e.road);
-      var ax = px(a.X), ay = py(a.Y), bx2 = px(b.X), by2 = py(b.Y);
-      var t = 0.15;
-      var x1 = ax + (bx2 - ax) * t, y1 = ay + (by2 - ay) * t;
-      var x2 = bx2 + (ax - bx2) * t, y2 = by2 + (ay - by2) * t;
-      g.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: '#0b0e14', 'stroke-width': 10, class: 'road' }));
-      g.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: PCOLOR[p.color], 'stroke-width': 7.5, class: 'road' }));
-      g.appendChild(svgEl('line', {
-        x1: x1, y1: y1, x2: x2, y2: y2, stroke: '#fff', 'stroke-width': 1.4,
-        'stroke-dasharray': '4.5 4.5', 'stroke-opacity': 0.75, class: 'road', 'stroke-linecap': 'butt'
-      }));
+      var col = PCOLOR[(playerIn(v, e.road) || {}).color] || '#fff';
+      var ax0 = px(a.X), ay0 = py(a.Y), bx0 = px(b.X), by0 = py(b.Y);
+      var dx = bx0 - ax0, dy = by0 - ay0, len = Math.hypot(dx, dy) || 1;
+      var ux = dx / len, uy = dy / len, pad = len * 0.15;
+      var x1 = ax0 + ux * pad, y1 = ay0 + uy * pad;
+      var x2 = bx0 - ux * pad, y2 = by0 - uy * pad;
+      var rg = svgEl('g', { class: 'roadG' });
+      // 갓돌 — 길 양옆의 어두운 턱
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadEdge' }));
+      // 노반과 포장
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadBed', stroke: shade(col, 0.6) }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadTop', stroke: col }));
+      // 윗면 하이라이트 — 빛 받는 쪽
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadShine', stroke: shade(col, 1.35) }));
+      // 가운데 차선
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadLane' }));
+      g.appendChild(rg);
     });
 
     // 지을 수 있는 자리 표시
@@ -626,30 +1043,46 @@
       var roof = shade(col, 0.62), wallHi = shade(col, 1.18);
       var shape = svgEl('g', { class: 'bld bldG' });
       if (vert.b.t === 'settlement') {
-        // 작은 집 — 벽, 처마 나온 지붕, 문
-        shape.appendChild(svgEl('rect', { x: cx - 6.5, y: cy - 2, width: 13, height: 9.5, fill: col, class: 'bld' }));
+        // 마을 — 작고 낮은 오두막 하나
+        shape.appendChild(svgEl('rect', { x: cx - 5.5, y: cy - 1, width: 11, height: 8, fill: col, class: 'bld' }));
         shape.appendChild(svgEl('path', {
-          d: 'M' + (cx - 9) + ' ' + (cy - 1.2) + ' L' + cx + ' ' + (cy - 9.5) + ' L' + (cx + 9) + ' ' + (cy - 1.2) + ' z',
+          d: 'M' + (cx - 7.5) + ' ' + (cy - 0.4) + ' L' + cx + ' ' + (cy - 7.5) + ' L' + (cx + 7.5) + ' ' + (cy - 0.4) + ' z',
           fill: roof, class: 'bld'
         }));
-        shape.appendChild(svgEl('rect', { x: cx - 1.8, y: cy + 2.6, width: 3.6, height: 4.9, rx: 1.2, fill: '#1a1410', stroke: 'none' }));
+        shape.appendChild(svgEl('rect', { x: cx - 1.5, y: cy + 2.4, width: 3, height: 4.6, rx: 1, fill: '#1a1410', stroke: 'none' }));
       } else {
-        // 도시 — 탑 + 본채, 깃발과 창문
-        shape.appendChild(svgEl('rect', { x: cx - 1, y: cy - 3.5, width: 12, height: 11.5, fill: col, class: 'bld' }));
-        shape.appendChild(svgEl('rect', { x: cx - 11, y: cy - 9, width: 9, height: 17, fill: wallHi, class: 'bld' }));
+        // 도시 — 성벽 위에 탑 둘과 본채. 마을보다 확실히 크고 높다
+        // 바닥 성벽
+        shape.appendChild(svgEl('rect', { x: cx - 14, y: cy + 1, width: 28, height: 8, fill: wallHi, class: 'bld' }));
+        // 성가퀴
+        for (var bi = 0; bi < 5; bi++) {
+          shape.appendChild(svgEl('rect', {
+            x: cx - 14 + bi * 5.6, y: cy - 1.6, width: 3.4, height: 3, fill: wallHi, class: 'bld'
+          }));
+        }
+        // 왼쪽 큰 탑
+        shape.appendChild(svgEl('rect', { x: cx - 13, y: cy - 13, width: 10, height: 14, fill: col, class: 'bld' }));
         shape.appendChild(svgEl('path', {
-          d: 'M' + (cx - 12.5) + ' ' + (cy - 8.2) + ' L' + (cx - 6.5) + ' ' + (cy - 15) + ' L' + (cx - 0.5) + ' ' + (cy - 8.2) + ' z',
+          d: 'M' + (cx - 15) + ' ' + (cy - 12.4) + ' L' + (cx - 8) + ' ' + (cy - 21) + ' L' + (cx - 1) + ' ' + (cy - 12.4) + ' z',
           fill: roof, class: 'bld'
         }));
+        // 오른쪽 작은 탑
+        shape.appendChild(svgEl('rect', { x: cx + 2, y: cy - 8, width: 9, height: 9, fill: col, class: 'bld' }));
         shape.appendChild(svgEl('path', {
-          d: 'M' + (cx - 1.8) + ' ' + (cy - 3) + ' L' + (cx + 5) + ' ' + (cy - 9.5) + ' L' + (cx + 11.8) + ' ' + (cy - 3) + ' z',
+          d: 'M' + cx + ' ' + (cy - 7.4) + ' L' + (cx + 6.5) + ' ' + (cy - 15) + ' L' + (cx + 13) + ' ' + (cy - 7.4) + ' z',
           fill: roof, class: 'bld'
         }));
-        shape.appendChild(svgEl('rect', { x: cx - 8.6, y: cy - 5, width: 3.2, height: 3.6, rx: 0.8, fill: '#1a1410', stroke: 'none' }));
-        shape.appendChild(svgEl('rect', { x: cx - 8.6, y: cy + 1, width: 3.2, height: 3.6, rx: 0.8, fill: '#1a1410', stroke: 'none' }));
-        shape.appendChild(svgEl('rect', { x: cx + 2.8, y: cy + 3, width: 3.4, height: 4.5, rx: 1, fill: '#1a1410', stroke: 'none' }));
-        shape.appendChild(svgEl('line', { x1: cx - 6.5, y1: cy - 15, x2: cx - 6.5, y2: cy - 19, stroke: '#0b0e14', 'stroke-width': 1 }));
-        shape.appendChild(svgEl('path', { d: 'M' + (cx - 6.5) + ' ' + (cy - 19) + ' h5 l-1.6 1.8 1.6 1.8 h-5 z', fill: roof, stroke: 'none' }));
+        // 창문과 성문
+        shape.appendChild(svgEl('rect', { x: cx - 10.6, y: cy - 10, width: 3, height: 3.6, rx: 0.7, fill: '#1a1410', stroke: 'none' }));
+        shape.appendChild(svgEl('rect', { x: cx - 6, y: cy - 10, width: 3, height: 3.6, rx: 0.7, fill: '#1a1410', stroke: 'none' }));
+        shape.appendChild(svgEl('rect', { x: cx + 5, y: cy - 5.4, width: 3, height: 3.4, rx: 0.7, fill: '#1a1410', stroke: 'none' }));
+        shape.appendChild(svgEl('path', {
+          d: 'M' + (cx - 2.6) + ' ' + (cy + 9) + ' v-4.4 a2.6 2.6 0 0 1 5.2 0 V' + (cy + 9) + ' z',
+          fill: '#1a1410', stroke: 'none'
+        }));
+        // 깃대
+        shape.appendChild(svgEl('line', { x1: cx - 8, y1: cy - 21, x2: cx - 8, y2: cy - 26, stroke: '#0b0e14', 'stroke-width': 1.1 }));
+        shape.appendChild(svgEl('path', { d: 'M' + (cx - 8) + ' ' + (cy - 26) + ' h6 l-1.9 2.1 1.9 2.1 h-6 z', fill: roof, stroke: 'none' }));
       }
       // 도시 올리기 모드 — 내 마을을 누른다
       if (mode === 'city' && vert.b.p === v.me && vert.b.t === 'settlement') {

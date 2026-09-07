@@ -9,7 +9,7 @@
 <meta property="og:title" content="카탄">
 <meta property="og:description" content="자원을 모아 마을과 도시를 짓고 10점을 먼저 내는 게임.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1017'/%3E%3Cpath d='M16 4l10 6v12l-10 6-10-6V10z' fill='%23d9a441'/%3E%3Cpath d='M16 4l10 6-10 6-10-6z' fill='%23e8c06a'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=f9bd8922">
+<link rel="stylesheet" href="style.css?v=9010a07f">
 </head>
 <body>
 
@@ -142,6 +142,19 @@
       <button id="btnHelp" class="mini">도움말</button>
     </div>
   </header>
+
+  <div id="nowBar" class="nowBar">
+    <span class="nowDot" id="nowDot"></span>
+    <span class="nowText" id="nowText">판을 준비하는 중…</span>
+  </div>
+
+  <div id="bigNews" class="bigNews hidden">
+    <div class="bigNewsInner">
+      <div class="bnIcon" id="bnIcon"></div>
+      <div class="bnTitle" id="bnTitle"></div>
+      <div class="bnSub" id="bnSub"></div>
+    </div>
+  </div>
 
   <div id="ckBar" class="ckBar hidden">
     <div class="barb">
@@ -369,11 +382,11 @@
 </div>
 
 <script src="vendor/peerjs.min.js?v=ad5d8870"></script>
-<script src="rules.js?v=28ed1d70"></script>
+<script src="rules.js?v=9d0a96d2"></script>
 <script src="ai.js?v=7542adcb"></script>
-<script src="ck.js?v=82ea874c"></script>
+<script src="ck.js?v=a120afc9"></script>
 <script src="ck-ai.js?v=8d98a624"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=3c007e37"></script>
+<script src="app.js?v=1fda5bcf"></script>
 </body>
 </html>

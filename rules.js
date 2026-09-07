@@ -481,6 +481,22 @@
     var want = {};   // pid -> res -> n
     var total = emptyRes();
     var claims = [];                                    // {hex, p, res, n} — 연출용
+    s.blocked = null;
+    // 도둑이 깔고 앉아 못 받게 된 몫 — 화면에서 짚어 준다
+    (function () {
+      var rh = s.board.hexes[s.robber];
+      if (!rh || rh.number !== sum || !rh.res) return;
+      var who = {};
+      rh.corners.forEach(function (v) {
+        var b = s.board.verts[v].b;
+        if (b) who[b.p] = true;
+      });
+      var names = Object.keys(who);
+      if (!names.length) return;
+      s.blocked = { hex: s.robber, res: rh.res, players: names, turn: s.turnCount };
+      say(s, null, '도둑이 ' + RES_NAME[rh.res] + ' 타일(' + sum + ')을 막고 있어 ' +
+        names.map(function (pid) { return nameOf(s, pid); }).join(', ') + '은(는) 못 받았습니다.');
+    })();
     s.board.hexes.forEach(function (h, i) {
       if (h.number !== sum || i === s.robber || !h.res) return;
       h.corners.forEach(function (v) {
@@ -591,8 +607,10 @@
     var cands = robberVictims(s, hex, pid);
     if (cands.length > 1 && !victim) return err('누구에게서 가져올지 골라 주세요.');
     if (victim && cands.indexOf(victim) < 0) return err('그 사람에게서는 가져올 수 없습니다.');
+    var fromHex = s.robber;
     s.robber = hex;
     var h = s.board.hexes[hex];
+    s.lastRobber = { from: fromHex, to: hex, p: pid, turn: s.turnCount, victim: null };
     say(s, null, nameOf(s, pid) + ' 도둑을 ' + TERRAIN_NAME[h.terrain] + (h.number ? ' ' + h.number : '') + '(으)로 옮김');
     var target = victim || (cands.length === 1 ? cands[0] : null);
     if (target) steal(s, pid, target);
@@ -607,6 +625,8 @@
     if (!pool.length) return;
     var c = pool[Math.floor(s.rnd() * pool.length)];
     v.res[c]--; thief.res[c]++;
+    if (s.lastRobber) s.lastRobber.victim = victimId;
+    s.lastSteal = { thief: pid, victim: victimId, turn: s.turnCount };
     say(s, null, thief.name + '이(가) ' + v.name + '에게서 카드 한 장을 가져갔습니다.');
     say(s, pid, '가져온 것: ' + RES_NAME[c]);
     say(s, victimId, '빼앗긴 것: ' + RES_NAME[c]);
@@ -780,6 +800,7 @@
     if (s.bank[get] < 1) return err('은행에 ' + RES_NAME[get] + '이(가) 없습니다.');
     p.res[give] -= rate; s.bank[give] += rate;
     take(s, p, get, 1);
+    s.lastBank = { p: pid, give: give, rate: rate, get: get, turn: s.turnCount };
     say(s, null, p.name + ' 은행과 ' + rate + ':1 — ' + RES_NAME[give] + ' ' + rate + ' → ' + RES_NAME[get]);
     return OK;
   }
@@ -828,6 +849,8 @@
     for (c in w) if (b.res[c] < w[c]) return err('상대의 자원이 모자랍니다.');
     for (c in g) { a.res[c] -= g[c]; b.res[c] += g[c]; }
     for (c in w) { b.res[c] -= w[c]; a.res[c] += w[c]; }
+    // 무엇이 오갔는지 — 화면에서 카드가 건너가는 연출에 쓴다
+    s.lastTrade = { a: a.id, b: b.id, give: JSON.parse(JSON.stringify(g)), want: JSON.parse(JSON.stringify(w)), turn: s.turnCount };
     say(s, null, a.name + ' ↔ ' + b.name + ' 거래 성사 — ' + resText(g) + ' ↔ ' + resText(w));
     s.trade = null;
     return OK;
@@ -909,6 +932,11 @@
       freeRoads: s.freeRoads, playedDev: s.playedDev,
       lastGain: s.lastGain ? JSON.parse(JSON.stringify(s.lastGain)) : null,
       recent: (s.recent || []).filter(function (r) { return r.turn >= s.turnCount - 1; }),
+      lastTrade: (s.lastTrade && s.lastTrade.turn >= s.turnCount - 1) ? s.lastTrade : null,
+      lastRobber: (s.lastRobber && s.lastRobber.turn >= s.turnCount - 1) ? s.lastRobber : null,
+      lastSteal: (s.lastSteal && s.lastSteal.turn >= s.turnCount - 1) ? s.lastSteal : null,
+      blocked: s.blocked || null,
+      lastBank: (s.lastBank && s.lastBank.turn >= s.turnCount - 1) ? s.lastBank : null,
       setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,

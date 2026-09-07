@@ -212,7 +212,6 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .chipT { font-weight: 800; fill: #2b2419; text-anchor: middle; }
 .chipT.hot { fill: #c0342b; }
 .robber { fill: #14171f; stroke: #e8ebf2; stroke-width: 1; opacity: 0.95; }
-.road { stroke-linecap: round; }
 .spotDot { fill: #e8a33d; stroke: #0b0e14; stroke-width: 1.4; cursor: pointer; }
 .spotDot:hover { fill: #ffcf70; }
 .edgeHit { stroke: #e8a33d; stroke-opacity: 0.85; stroke-linecap: round; cursor: pointer; stroke-dasharray: 5 4; }
@@ -291,7 +290,15 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   background: #f2ead6; border: 1.5px solid #0b0e14;
   display: flex; align-items: center; justify-content: center; font-size: 17px;
   box-shadow: 0 4px 12px #0008;
-  transition: transform 0.95s cubic-bezier(0.34, 0.02, 0.3, 1), opacity 0.3s;
+  transition: transform 0.95s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.3s;
+}
+/* 카드가 도착한 곳을 잠깐 밝힌다 */
+.gotIt {
+  animation: gotPulse 0.5s ease-out;
+}
+@keyframes gotPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(217,164,65,0.9); }
+  100% { box-shadow: 0 0 0 12px rgba(217,164,65,0); }
 }
 .panelMsg b { color: var(--gold); }
 
@@ -428,4 +435,105 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .trk { padding: 2px 5px; gap: 4px; }
   .trkName { font-size: 10.5px; }
   .barbInfo { font-size: 10.5px; }
+}
+
+
+/* ---------------- 중계 — 지금 무슨 일이 벌어지는가 ---------------- */
+
+.nowBar {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 13px; margin-bottom: 6px; min-height: 40px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  font-size: 14.5px; font-weight: 600; color: var(--ink);
+  transition: background 0.25s, border-color 0.25s;
+}
+.nowDot {
+  width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--faint); border: 1px solid rgba(0,0,0,0.25);
+  transition: background 0.25s;
+}
+.nowText { flex: 1; min-width: 0; }
+.nowText b { color: var(--gold); }
+.nowBar.mine { border-color: var(--gold); background: var(--goldSoft, var(--panel2)); }
+.nowBar.step .nowText { animation: nowIn 0.3s ease-out; }
+@keyframes nowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.nowWait {
+  width: 26px; height: 6px; flex: 0 0 auto; display: flex; gap: 3px; align-items: center;
+}
+.nowWait i {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--faint);
+  animation: nowPulse 1s infinite;
+}
+.nowWait i:nth-child(2) { animation-delay: 0.15s; }
+.nowWait i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes nowPulse { 0%,60%,100% { opacity: 0.25; } 30% { opacity: 1; } }
+
+/* 큰 소식 — 차례 넘어감, 최장 교역로, 기사단, 야만족 */
+.bigNews {
+  position: fixed; inset: 0; z-index: 55; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.bigNewsInner {
+  background: var(--panel); border: 2px solid var(--line);
+  border-radius: 18px; padding: 20px 34px; text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  animation: bnPop 0.4s cubic-bezier(0.2, 1.3, 0.5, 1);
+}
+.bigNews.out .bigNewsInner { animation: bnOut 0.3s ease-in forwards; }
+@keyframes bnPop {
+  from { opacity: 0; transform: scale(0.85) translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bnOut { to { opacity: 0; transform: scale(0.96); } }
+.bigNewsInner.award {
+  border-color: var(--gold);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35), 0 0 0 4px rgba(217,164,65,0.18);
+}
+.bigNewsInner.award .bnIcon { animation: awardSpin 0.7s cubic-bezier(0.2, 1.3, 0.4, 1); }
+@keyframes awardSpin {
+  from { transform: scale(0.4) rotate(-25deg); }
+  to   { transform: none; }
+}
+.bnIcon { font-size: 34px; line-height: 1; margin-bottom: 6px; }
+.bnTitle { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.bnSub { font-size: 13.5px; color: var(--dim); margin-top: 4px; }
+
+@media (max-width: 560px) {
+  .nowBar { font-size: 13px; padding: 8px 10px; min-height: 36px; }
+  .bnTitle { font-size: 18px; }
+  .bigNewsInner { padding: 16px 24px; }
+}
+
+
+/* 도둑이 옮겨 가는 모습 */
+.robberGhost {
+  position: fixed; z-index: 58; pointer-events: none;
+  width: 32px; height: 32px; font-size: 24px; line-height: 32px; text-align: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+  transition: transform 0.75s cubic-bezier(0.4, 0, 0.3, 1), opacity 0.26s;
+}
+/* 도둑에 막힌 타일 */
+.blockMark {
+  position: fixed; z-index: 58; pointer-events: none;
+  width: 40px; height: 40px; font-size: 32px; line-height: 40px; text-align: center;
+  opacity: 0.95; transition: opacity 0.3s;
+  animation: blockPop 0.35s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+@keyframes blockPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 0.95; } }
+/* 뒷면 카드 — 무엇을 빼앗겼는지 모른다 */
+.flyCard.back { background: #6b5f49; color: #f2ead6; font-weight: 800; }
+
+
+/* 도로 — 갓돌·포장·차선 */
+.roadG { pointer-events: none; }
+.roadEdge { stroke: #14171f; stroke-width: 11.5; stroke-linecap: round; opacity: 0.5; }
+.roadBed { stroke-width: 9.5; stroke-linecap: round; }
+.roadTop { stroke-width: 7; stroke-linecap: round; }
+.roadShine { stroke-width: 2.2; stroke-linecap: round; opacity: 0.4; transform: translateY(-1.6px); }
+.roadLane {
+  stroke: #fff8e8; stroke-width: 1.3; stroke-linecap: butt;
+  stroke-dasharray: 5 5; opacity: 0.72;
 }
