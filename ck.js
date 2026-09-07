@@ -1632,7 +1632,7 @@
         return pub;
       }),
       log: s.log.filter(function (l) { return !l.only || l.only === pid; })
-        .slice(-40).map(function (l) { return { i: l.i, text: l.text, mine: !!l.only }; }),
+        .slice(-120).map(function (l) { return { i: l.i, text: l.text, mine: !!l.only }; }),
       legal: isMine ? {
         settlements: legalSettlements(s, pid),
         cities: legalCities(s, pid),

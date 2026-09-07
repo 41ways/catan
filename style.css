@@ -376,7 +376,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 @media (max-width: 480px) {
   .pl { font-size: 11px; padding: 4px 7px; }
-  .log { max-height: 56px; }
+  .log { max-height: 74px; }
   #board { max-height: 48dvh; }
 }
 
