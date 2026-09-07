@@ -1239,7 +1239,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 /* 뒷면으로 나타나 앞면으로 뒤집힌다.
    투명도를 여기서 건드리면 3D 가 납작해져 뒤집기가 안 보인다 — 페이드는 .crWrap 이 맡는다 */
 .crFlip {
-  position: relative; width: min(330px, 82vw); aspect-ratio: 460 / 831;
+  position: relative; width: min(330px, 82vw); aspect-ratio: 460 / 825;
   transform-style: preserve-3d;
   animation: crTurn 0.62s cubic-bezier(0.45, 0.05, 0.25, 1) 0.45s both;
 }
