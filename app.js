@@ -610,16 +610,22 @@
     var c = CARD_INFO[type];
     return c ? c.name + ' — ' + c.desc : '';
   }
-  // 방금 내가 뽑은(받은) 카드를 알려 주는 줄인지
+  // 화면 가운데에 카드를 펼쳐 보일 줄인지 — 내가 뽑았거나, 누가 꺼내 보인 카드
   function drawnCardOf(text) {
     var m = /^뽑은 카드 — (.+)$/.exec(text)
          || /^진보카드를 받았습니다 — (.+)$/.exec(text)
          || /^가져온 카드: (.+)$/.exec(text);
+    if (m) return CARD_BY_NAME[m[1].trim()] || null;
+    // 누군가 진보카드를 냈다 — 모두에게 공개된다
+    m = /진보카드 — (.+?)(?:\s*\(|$)/.exec(text);
     return m ? (CARD_BY_NAME[m[1].trim()] || null) : null;
+  }
+  function myCardLine(text) {
+    return /^뽑은 카드 — /.test(text) || /^진보카드를 받았습니다 — /.test(text) || /^가져온 카드: /.test(text);
   }
 
   // 뽑은 카드를 화면 가운데에 펼쳐 보여 준다
-  function showCardReveal(type) {
+  function showCardReveal(type, mine) {
     var c = CARD_INFO[type], box = $('cardReveal');
     if (!c || !box) return;
     // 큰 알림이 떠 있으면 겹치지 않게 먼저 치운다
@@ -652,7 +658,8 @@
     void flip.offsetWidth;
     flip.style.animation = ''; wrap.style.animation = '';
     clearTimeout(App.crTimer);
-    App.crTimer = setTimeout(function () { box.classList.add('hidden'); }, hasImg ? 3800 : 2600);
+    App.crTimer = setTimeout(function () { box.classList.add('hidden'); },
+      mine === false ? 2200 : (hasImg ? 3800 : 2600));
     box.onclick = function () { clearTimeout(App.crTimer); box.classList.add('hidden'); };
   }
 
@@ -672,7 +679,8 @@
       var drew = drawnCardOf(l.text);
       App.feed.push({
         text: l.text, icon: drew ? CARD_INFO[drew].icon : info.icon,
-        hold: drew ? (CARD_INFO[drew].img ? 3800 : 2600) : info.hold, big: info.big,
+        hold: drew ? (myCardLine(l.text) ? (CARD_INFO[drew].img ? 3800 : 2600) : 2400) : info.hold,
+        big: info.big, mineCard: drew ? myCardLine(l.text) : false,
         owner: lineOwner(v, l.text), card: drew
       });
     });
@@ -685,7 +693,7 @@
     App.feedBusy = true;
     var item = App.feed.shift();
     showNow(item.icon, item.text, item.owner);
-    if (item.card) showCardReveal(item.card);
+    if (item.card) showCardReveal(item.card, item.mineCard);
     else if (item.big) showBigNews(item);
     // 밀려 있으면 조금씩 빨리 넘긴다
     var hold = item.hold * (App.feed.length > 5 ? 0.45 : App.feed.length > 2 ? 0.7 : 1);

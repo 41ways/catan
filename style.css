@@ -1319,3 +1319,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   color: var(--ink);
 }
 .fine.warn::before { content: '\26A0\FE0F'; font-size: 13px; line-height: 1.5; }
+/* 도움말의 확장판 진보카드 더미 이름표 */
+.ckDeck { margin: 12px 0 4px; font-weight: 800; font-size: 13px; padding-left: 9px; border-left: 4px solid var(--line); }
+.ckDeck.d-sci { border-left-color: #4f8c46; }
+.ckDeck.d-pol { border-left-color: #4a72a8; }
+.ckDeck.d-tra { border-left-color: #d9a441; }
