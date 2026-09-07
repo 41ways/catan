@@ -130,7 +130,6 @@ input, select {
   padding-left: 0.42em;
 }
 .sublogo::before, .sublogo::after { content: '—'; margin: 0 0.6em; opacity: 0.5; }
-.tagline { margin: 6px 0 4px; font-family: var(--serif); color: var(--dim); font-size: 14.5px; line-height: 1.7; }
 
 /* 자원 카드 부채 */
 .tfan { display: flex; align-items: flex-end; justify-content: center; margin: 4px 0 10px; padding-left: 22px; }
@@ -1150,7 +1149,6 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .tfan .resCard .resName { font-size: 9px; }
   .tfan .resCard:not(:last-child) .resFace, .tfan .resCard:not(:last-child) .resName { visibility: visible; }
   .logo { font-size: clamp(56px, 19vw, 72px); }
-  .tagline { font-size: 13.5px; }
   .kicker { top: 14px; left: 14px; font-size: 11px; }
 }
 #title, .twrap, .hero { max-width: 100%; }
