@@ -1283,8 +1283,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .crImg[hidden] { display: none; }   /* display:block 이 hidden 을 덮어써 빈 자리가 생기던 것 */
 /* 최장 교역로 · 최강 기사단 — 실제 카드를 띄운다 */
 .bnCard {
-  display: block; width: min(340px, 76vw); height: auto; margin: 8px auto 0; border-radius: 10px;
-  box-shadow: 0 12px 26px rgba(0,0,0,0.45);
+  display: block; max-width: min(340px, 76vw); max-height: 40vh; width: auto; height: auto;
+  margin: 8px auto 0; border-radius: 10px; box-shadow: 0 12px 26px rgba(0,0,0,0.45);
 }
 /* 손패 칩에 붙는 카드 그림 조각 */
 .chipArt {

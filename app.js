@@ -522,58 +522,83 @@
 
     /* 도시와 기사 — 과학(초록) */
     alchemist:  { name: '연금술사', icon: '\uD83E\uDDEA', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/alchemist.webp', art: 'img/a-alchemist.webp',
                   desc: '주사위를 굴리기 전에 써서, 이번에 나올 흰·빨강 눈을 직접 정합니다.' },
     crane:      { name: '기중기', icon: '\uD83C\uDFD7\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/crane.webp', art: 'img/a-crane.webp',
                   desc: '이번 차례의 도시 개발 한 번을 상품 한 장 싸게 합니다.' },
     mining:     { name: '광산', icon: '\u26CF\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/mining.webp', art: 'img/a-mining.webp',
                   desc: '내 건물이 닿은 산 하나당 철 두 장을 캡니다.' },
     irrigation: { name: '관개 시설', icon: '\uD83D\uDCA7', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/irrigation.webp', art: 'img/a-irrigation.webp',
                   desc: '내 건물이 닿은 농지 하나당 밀 두 장을 거둡니다.' },
     printer:    { name: '인쇄소', icon: '\uD83D\uDDA8\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/printer.webp', art: 'img/a-printer.webp',
                   desc: '받는 즉시 공개하는 승점 카드 — 1점.' },
     inventor:   { name: '발명가', icon: '\uD83D\uDCA1', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/inventor.webp', art: 'img/a-inventor.webp',
                   desc: '숫자 칩 두 개의 자리를 맞바꿉니다. 2 · 12 · 6 · 8 은 손댈 수 없습니다.' },
     engineer:   { name: '기술자', icon: '\uD83E\uDDF1', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/engineer.webp', art: 'img/a-engineer.webp',
                   desc: '내 도시에 성벽 하나를 공짜로 쌓습니다. 손패 한도가 두 장 늘어납니다.' },
     medicine:   { name: '의료기술', icon: '\u2695\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/medicine.webp', art: 'img/a-medicine.webp',
                   desc: '철 두 장과 밀 한 장만으로 마을을 도시로 올립니다.' },
     smith:      { name: '제련술', icon: '\uD83D\uDD28', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/smith.webp', art: 'img/a-smith.webp',
                   desc: '내 기사 둘을 공짜로 한 등급씩 승급시킵니다.' },
     roadbuild:  { name: '도로 건설', icon: '\uD83D\uDEE4\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+                  img: 'img/roadbuild.webp', art: 'img/a-roadbuild.webp',
                   desc: '도로 두 개를 재료 없이 놓습니다.' },
 
     /* 도시와 기사 — 정치(파랑) */
     bishop:       { name: '주교', icon: '\u26EA', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/bishop.webp', art: 'img/a-bishop.webp',
                     desc: '도둑을 옮기고, 그 땅에 닿은 상대 모두에게서 한 장씩 가져옵니다.' },
     diplomat:     { name: '외교관', icon: '\uD83E\uDD1D', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/diplomat.webp', art: 'img/a-diplomat.webp',
                     desc: '끝이 열린 도로 하나를 없앱니다. 내 도로였다면 다른 곳에 다시 놓습니다.' },
     constitution: { name: '헌법', icon: '\uD83D\uDCDC', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/constitution.webp', art: 'img/a-constitution.webp',
                     desc: '받는 즉시 공개하는 승점 카드 — 1점.' },
     deserter:     { name: '변절자', icon: '\uD83C\uDFF3\uFE0F', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/deserter.webp', art: 'img/a-deserter.webp',
                     desc: '상대 기사 하나를 없애고, 같은 등급의 기사를 내 땅에 세웁니다.' },
     saboteur:     { name: '방해자', icon: '\uD83D\uDCA3', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/saboteur.webp', art: 'img/a-saboteur.webp',
                     desc: '나보다 점수가 높거나 같은 사람은 손패의 절반을 버립니다.' },
     spy:          { name: '첩자', icon: '\uD83D\uDD75\uFE0F', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/spy.webp', art: 'img/a-spy.webp',
                     desc: '한 사람의 진보카드를 들여다보고 그중 한 장을 가져옵니다.' },
     intrigue:     { name: '음모', icon: '\uD83C\uDF00', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/intrigue.webp', art: 'img/a-intrigue.webp',
                     desc: '내 도로가 닿은 자리에 선 상대 기사를 밀어냅니다.' },
     wedding:      { name: '결혼', icon: '\uD83D\uDC8D', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/wedding.webp', art: 'img/a-wedding.webp',
                     desc: '나보다 점수가 높은 사람마다 카드를 두 장씩 받습니다.' },
     warlord:      { name: '사령관', icon: '\uD83C\uDF96\uFE0F', kind: '정치 진보카드', cls: 'k-pol',
+                  img: 'img/warlord.webp', art: 'img/a-warlord.webp',
                     desc: '내 기사 전부가 곡식 없이 활동 상태가 됩니다.' },
 
     /* 도시와 기사 — 상업(노랑) */
     merchant: { name: '상인', icon: '\uD83C\uDFEA', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/merchant.webp', art: 'img/a-merchant.webp',
                 desc: '내 건물이 닿은 땅에 상인을 놓습니다. 그 자원을 2:1로 바꾸고 승점 1점.' },
     harbor:   { name: '무역항', icon: '\u2693', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/harbor.webp', art: 'img/a-harbor.webp',
                 desc: '상대마다 내 자원 한 장을 주고 상품 한 장을 받아 옵니다.' },
     fleet:    { name: '상선대', icon: '\u26F5', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/fleet.webp', art: 'img/a-fleet.webp',
                 desc: '이번 차례 동안 고른 것 하나를 2:1로 바꿉니다.' },
     trader:   { name: '전문 상인', icon: '\uD83D\uDCBC', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/trader.webp', art: 'img/a-trader.webp',
                 desc: '나보다 점수가 높은 사람의 손을 보고 두 장을 가져옵니다.' },
     commMono: { name: '상품 독점', icon: '\uD83C\uDFED', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/commMono.webp', art: 'img/a-commMono.webp',
                 desc: '상품 하나를 골라 모든 상대에게서 한 장씩 거둡니다.' },
     resMono:  { name: '자원 독점', icon: '\uD83D\uDCE6', kind: '상업 진보카드', cls: 'k-tra',
+                  img: 'img/resMono.webp', art: 'img/a-resMono.webp',
                 desc: '자원 하나를 골라 모든 상대에게서 두 장씩 거둡니다.' }
   };
   var CARD_BY_NAME = {};
@@ -601,6 +626,12 @@
     var bn = $('bigNews');
     if (bn && !bn.classList.contains('hidden')) {
       clearTimeout(App.bigTimer); bn.classList.add('hidden'); bn.classList.remove('out');
+    }
+    var backImg = $('crBackImg');
+    if (backImg) {
+      backImg.src = c.cls === 'k-sci' ? 'img/back-sci.webp'
+                  : c.cls === 'k-pol' ? 'img/back-pol.webp'
+                  : c.cls === 'k-tra' ? 'img/back-tra.webp' : 'img/back.webp';
     }
     var img = $('crImg'), hasImg = !!c.img;
     img.hidden = !hasImg;
@@ -870,7 +901,9 @@
     var bnCard = $('bnCard');
     if (bnCard) {
       var awardImg = text.indexOf('최장 교역로') >= 0 ? 'img/longestroad.webp'
-                   : text.indexOf('최강 기사단') >= 0 ? 'img/largestarmy.webp' : '';
+                   : text.indexOf('최강 기사단') >= 0 ? 'img/largestarmy.webp'
+                   : text.indexOf('수호자') >= 0 ? 'img/defender.webp'
+                   : text.indexOf('야만족 상륙') >= 0 ? 'img/barbarians.webp' : '';
       bnCard.hidden = !awardImg;
       if (awardImg) bnCard.src = awardImg;
     }
@@ -2063,6 +2096,12 @@
     if (isExt(v)) {
       (p.cardList || []).forEach(function (c) {
         var b = el('button', 'devchip trk-' + c.track, CK.CARD_NAME[c.type]);
+        var cart = CARD_INFO[c.type] && CARD_INFO[c.type].art;
+        if (cart) {
+          var cthumb = document.createElement('img');
+          cthumb.className = 'chipArt'; cthumb.src = cart; cthumb.alt = '';
+          b.insertBefore(cthumb, b.firstChild);
+        }
         b.title = cardTip(c.type) || (CK.TRACK_NAME[c.track] + ' 진보카드');
         b.onclick = function () { playProgressUI(c.type); };
         box.appendChild(b);
