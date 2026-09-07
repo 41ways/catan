@@ -815,6 +815,21 @@
     if (!a || !b) return;
     var from = boardToScreen(px(a.X) - 27, py(a.Y) + 19);
     var to = boardToScreen(px(b.X) - 27, py(b.Y) + 19);
+    // 지나간 길에 발자국
+    var steps = 5;
+    for (var si = 1; si <= steps; si++) {
+      (function (k) {
+        setTimeout(function () {
+          var fx = from.x + (to.x - from.x) * (k / (steps + 1));
+          var fy = from.y + (to.y - from.y) * (k / (steps + 1));
+          var fp = el('div', 'footprint', '\uD83D\uDC63');
+          fp.style.left = (fx - 9) + 'px'; fp.style.top = (fy - 6) + 'px';
+          fp.style.transform = 'rotate(' + (Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI + 90) + 'deg)';
+          document.body.appendChild(fp);
+          setTimeout(function () { fp.remove(); }, 2600);
+        }, k * 130);
+      })(si);
+    }
     var ghost = el('div', 'robberGhost', '\uD83D\uDD75\uFE0F');
     ghost.style.left = (from.x - 16) + 'px';
     ghost.style.top = (from.y - 16) + 'px';
@@ -1007,6 +1022,8 @@
     Object.keys(hexes).forEach(function (hi) {
       var poly = $('board').querySelector('.hex[data-hex="' + hi + '"]');
       if (poly) { poly.classList.add('lit'); lit.push(poly); }
+      var chip = $('board').querySelector('.chipG[data-hex="' + hi + '"]');
+      if (chip) { chip.classList.add('chipPop'); setTimeout(function () { chip.classList.remove('chipPop'); }, 700); }
     });
 
     // 점등을 눈으로 확인할 틈을 주고 카드를 보낸다
@@ -1242,7 +1259,7 @@
       if (hasNum) {
         var hot = h.number === 6 || h.number === 8;
         var ny = cy + 17;
-        var chipG = svgEl('g', { class: 'chipG' + (App.intro ? ' chipIn' : '') });
+        var chipG = svgEl('g', { class: 'chipG' + (App.intro ? ' chipIn' : ''), 'data-hex': h.i });
         if (App.intro) chipG.style.animationDelay = (INTRO_TILES + h.i * 55) + 'ms';
         chipG.appendChild(svgEl('circle', { cx: cx, cy: ny, r: 14, class: 'chipC' }));
         var t = svgEl('text', { x: cx, y: ny + 5, 'font-size': 15, class: 'chipT' + (hot ? ' hot' : '') });
@@ -1500,6 +1517,17 @@
         shape.appendChild(svgEl('line', { x1: cx - 8, y1: cy - 21, x2: cx - 8, y2: cy - 26, stroke: '#0b0e14', 'stroke-width': 1.1 }));
         shape.appendChild(svgEl('path', { d: 'M' + (cx - 8) + ' ' + (cy - 26) + ' h6 l-1.9 2.1 1.9 2.1 h-6 z', fill: roof, stroke: 'none' }));
       }
+      // 굴뚝 연기 — 사람이 사는 느낌
+      (function () {
+        var chimneys = vert.b.t === 'city' ? [[cx - 3, cy - 20], [cx + 8, cy - 12]] : [[cx + 4, cy - 9]];
+        chimneys.forEach(function (ch, ci) {
+          for (var k = 0; k < (vert.b.t === 'city' ? 3 : 2); k++) {
+            var puff = svgEl('circle', { cx: ch[0], cy: ch[1], r: vert.b.t === 'city' ? 2.2 : 1.6, class: 'smoke' });
+            puff.style.animationDelay = (-(k * 1.1 + ci * 0.6)) + 's';
+            shape.appendChild(puff);
+          }
+        });
+      })();
       // 방금 지어졌으면 툭 떨어지는 연출 (한 번만)
       (v.recent || []).forEach(function (r) {
         if (r.kind === 'road' || r.id !== vert.i) return;
@@ -1636,10 +1664,32 @@
         mark.title = '지금 차례';
         d.appendChild(mark);
       }
+      // 내 색깔 말 — 작은 집 모양
+      var pawn = document.createElementNS(SVGNS, 'svg');
+      pawn.setAttribute('viewBox', '0 0 16 16'); pawn.setAttribute('class', 'pawn');
+      var pawnBody = document.createElementNS(SVGNS, 'path');
+      pawnBody.setAttribute('d', 'M2 8 L8 2 L14 8 V14 H2 Z');
+      pawnBody.setAttribute('fill', PCOLOR[p.color]); pawnBody.setAttribute('stroke', '#2b2419'); pawnBody.setAttribute('stroke-width', '1.2');
+      pawn.appendChild(pawnBody);
+      d.appendChild(pawn);
       var nm = el('span', 'nm', p.name);
       d.appendChild(nm);
       if (p.id === v.me) d.appendChild(el('span', 'meTag', '나'));
       if (isTurn) d.appendChild(el('span', 'turnTag', p.id === v.me ? '내 차례' : '차례'));
+      // 남의 차례면 말풍선 — 지금 뭘 하는지
+      if (isTurn && p.id !== v.me && v.phase !== 'over') {
+        var what = v.phase === 'order' ? '주사위 굴리는 중'
+          : v.phase === 'setup' ? '자리 고르는 중'
+          : v.phase === 'roll' ? '주사위 굴리는 중'
+          : v.phase === 'robber' ? '도둑 옮기는 중'
+          : v.phase === 'discard' ? '카드 버리는 중'
+          : v.trade ? '거래 고르는 중' : '생각 중';
+        var bub = el('span', 'think');
+        bub.appendChild(el('span', null, what));
+        var dots = el('i'); dots.appendChild(el('b')); dots.appendChild(el('b')); dots.appendChild(el('b'));
+        bub.appendChild(dots);
+        d.appendChild(bub);
+      }
       d.appendChild(el('span', 'vp', (p.id === v.me && p.vpFull !== undefined ? p.vpFull : p.vp) + '점'));
       var cardIc = el('span', 'st');
       cardIc.appendChild(el('i', 'cardIc'));
@@ -2381,24 +2431,41 @@
   function winTarget(v) { return isExt(v) ? CK.WIN_VP : R.WIN_VP; }
 
   function showOver(v) {
+    // 떠 있던 명패·중계는 치우고 트로피만 보이게
+    clearTimeout(App.bigTimer);
+    $('bigNews').classList.add('hidden');
+    App.feed.length = 0;
     if (!App.confettiDone) { App.confettiDone = true; confetti(); }
     var w = v.winner ? playerIn(v, v.winner) : null;
-    $('overTitle').textContent = w ? w.name + ' 승리!' : '판이 끝났습니다';
+    var title = $('overTitle');
+    title.textContent = w ? w.name + ' 승리!' : '판이 끝났습니다';
+    title.style.color = w ? (PCOLOR[w.color] || '') : '';
+    var sheet = $('over').querySelector('.sheet');
+    sheet.classList.add('trophy');
     var body = $('overBody');
     body.innerHTML = '';
+    var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
     v.players.slice().sort(function (a, b) {
       return (b.vpFull || b.vp) - (a.vpFull || a.vp);
-    }).forEach(function (p) {
-      var line = el('p', null);
-      line.textContent = p.name + ' — ' + (p.vpFull !== undefined ? p.vpFull : p.vp) + '점' +
-        (p.vpCards ? ' (승점 카드 ' + p.vpCards + ')' : '') +
-        (v.longest.p === p.id ? ' · 최장 교역로' : '') +
-        (!isExt(v) && v.army && v.army.p === p.id ? ' · 최강 기사단' : '') +
-        (p.out ? ' · 나감' : '');
-      body.appendChild(line);
+    }).forEach(function (p, i) {
+      var row = el('div', 'overRow' + (p.id === v.winner ? ' win' : ''));
+      row.style.borderLeftColor = PCOLOR[p.color] || 'transparent';
+      row.appendChild(el('span', 'medal', medals[i] || (i + 1) + '.'));
+      row.appendChild(el('b', 'oname', p.name));
+      var pts = (p.vpFull !== undefined ? p.vpFull : p.vp);
+      row.appendChild(el('span', 'opts', pts + '점'));
+      var extra = [];
+      if (p.vpCards) extra.push('승점 카드 ' + p.vpCards);
+      if (v.longest.p === p.id) extra.push('최장 교역로');
+      if (!isExt(v) && v.army && v.army.p === p.id) extra.push('최강 기사단');
+      if (isExt(v) && p.defender) extra.push('수호자 ' + p.defender);
+      if (p.out) extra.push('나감');
+      if (extra.length) row.appendChild(el('span', 'oextra', extra.join(' · ')));
+      body.appendChild(row);
     });
     $('over').classList.remove('hidden');
   }
+
 
   function render() {
     if (App.view) {
