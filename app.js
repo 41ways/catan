@@ -73,6 +73,7 @@
   // 판이 깔리는 연출을 시작한다 (한 판에 한 번)
   function startIntro() {
     App.intro = true;
+    App.seenBuilt = App.seenBuilt || {};
     clearTimeout(App.introTimer);
     App.introTimer = setTimeout(function () {
       App.intro = false;
@@ -102,6 +103,7 @@
     }), Math.floor(Math.random() * 1e9));
     App.build = null; App.discardSel = [];
     App.lastLogId = undefined; App.feed = []; App.feedBusy = false;
+    App.seenBuilt = {}; App.confettiDone = false;
     show('game');
     startIntro();
     pushViews();
@@ -132,7 +134,7 @@
         // 주사위가 화면에서 사라진 뒤에 해당 칸이 점등하고, 그 다음 카드가 온다
         var roller = v.players[v.turn];
         showDiceRoll(v.dice, roller, v, function () {
-          if (isSeven) litRobber();
+          if (isSeven) robberSweep(litRobber);
           else if (gains) flyGains(gains);
           else showBlocked(v);
         });
@@ -275,6 +277,86 @@
     box.style.boxShadow = 'inset 0 0 0 ' + (mine ? '3px' : '2px') + ' ' + col +
       (mine ? ', 0 0 18px -4px ' + col : '');
     box.classList.toggle('myTurnFrame', mine);
+  }
+
+  /* ---------------- 분위기 연출 ---------------- */
+
+  function screenShake() {
+    var box = $('boardBox');
+    if (!box) return;
+    box.classList.remove('shake');
+    void box.offsetWidth;
+    box.classList.add('shake');
+    setTimeout(function () { box.classList.remove('shake'); }, 600);
+  }
+
+  // 7 — 도둑이 흙먼지를 일으키며 화면을 가로질러 달려간다
+  function robberSweep(done) {
+    var ov = $('robberSweep'), fig = $('sweepFig');
+    if (!ov) { if (done) done(); return; }
+    ov.classList.remove('hidden');
+    fig.style.animation = 'none'; void fig.offsetWidth; fig.style.animation = '';
+    var txt = $('sweepText');
+    txt.style.animation = 'none'; void txt.offsetWidth; txt.style.animation = '';
+    screenShake();
+    // 달리는 길을 따라 흙먼지
+    var puffs = 0;
+    var puffTimer = setInterval(function () {
+      var r = fig.getBoundingClientRect();
+      if (!r.width) return;
+      var p = el('i', 'puff');
+      p.style.left = (r.left + r.width * 0.25 + (Math.random() * 16 - 8)) + 'px';
+      p.style.top = (r.bottom - 10 + (Math.random() * 10 - 5)) + 'px';
+      ov.appendChild(p);
+      setTimeout(function () { p.remove(); }, 950);
+      if (++puffs > 18) clearInterval(puffTimer);
+    }, 70);
+    setTimeout(function () {
+      clearInterval(puffTimer);
+      ov.classList.add('hidden');
+      ov.querySelectorAll('.puff').forEach(function (p) { p.remove(); });
+      if (done) done();
+    }, 1550);
+  }
+
+  // 승리 — 색종이
+  function confetti() {
+    var box = $('confetti');
+    if (!box) return;
+    box.innerHTML = '';
+    box.classList.remove('hidden');
+    var colors = ['#d95f4a', '#5a8fd9', '#e09a3e', '#f5c542', '#5aa96b', '#c46b9a', '#fff'];
+    for (var i = 0; i < 90; i++) {
+      var f = el('i');
+      f.style.left = (Math.random() * 100) + 'vw';
+      f.style.background = colors[i % colors.length];
+      f.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+      f.style.animationDelay = (Math.random() * 0.9) + 's';
+      f.style.width = (6 + Math.random() * 6) + 'px';
+      f.style.height = (10 + Math.random() * 8) + 'px';
+      box.appendChild(f);
+    }
+    setTimeout(function () { box.classList.add('hidden'); box.innerHTML = ''; }, 4600);
+  }
+
+  // 거래 성사 — 두 사람 사이에 악수
+  function handshakeAt(ra, rb) {
+    var x = (ra.left + ra.width / 2 + rb.left + rb.width / 2) / 2;
+    var y = (ra.top + ra.height / 2 + rb.top + rb.height / 2) / 2 + 26;
+    var h = el('div', 'handshake', '\uD83E\uDD1D');
+    h.style.left = x + 'px'; h.style.top = y + 'px';
+    document.body.appendChild(h);
+    setTimeout(function () { h.remove(); }, 1200);
+  }
+
+  // 새로 지은 것은 한 번만 착지 연출을 한다
+  function freshKey(r) { return r.kind + ':' + r.id + ':' + r.p + ':' + r.turn; }
+  function isFresh(r) {
+    App.seenBuilt = App.seenBuilt || {};
+    var k = freshKey(r);
+    if (App.seenBuilt[k]) return false;
+    App.seenBuilt[k] = 1;
+    return true;
   }
 
   /* ---------------- 중계 — 로그를 한 줄씩 풀어 보여준다 ---------------- */
@@ -554,6 +636,7 @@
       sub = '더 높이 개발해 수도를 가져왔습니다 — 2점';
     } else if (text.indexOf('야만족 상륙') >= 0) {
       title = '야만족 상륙!';
+      screenShake();
       sub = text.replace(/^.*상륙!\s*/, '');
     } else if (text.indexOf('절반 버리기') >= 0) {
       var mineNeed = App.view && App.view.mustDiscard ? App.view.mustDiscard[App.view.me] : 0;
@@ -661,6 +744,7 @@
     App.tradeKey = key;
     var ra = chipRect(t.a), rb = chipRect(t.b);
     if (!ra || !rb) return;
+    handshakeAt(ra, rb);
     var delay = 0;
     Object.keys(t.give).forEach(function (c) {
       for (var i = 0; i < t.give[c]; i++) { flyBetween(ra, rb, c, delay); delay += 130; }
@@ -819,6 +903,7 @@
         b1.classList.remove('rolling'); b2.classList.remove('rolling');
         dieFace(b1, d[0]); dieFace(b2, d[1]);
         var sum = d[0] + d[1];
+        if (sum === 7) screenShake();
         $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
         var note;
         if (sum === 7) {
@@ -1205,15 +1290,19 @@
       var x1 = ax0 + ux * pad, y1 = ay0 + uy * pad;
       var x2 = bx0 - ux * pad, y2 = by0 - uy * pad;
       var rg = svgEl('g', { class: 'roadG' });
+      (v.recent || []).forEach(function (r) {
+        if (r.kind !== 'road' || r.id !== e.i) return;
+        if (isFresh(r)) rg.classList.add('roadDraw');
+      });
       // 갓돌 — 길 양옆의 어두운 턱
-      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadEdge' }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadEdge', pathLength: 1 }));
       // 노반과 포장
-      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadBed', stroke: shade(col, 0.6) }));
-      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadTop', stroke: col }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadBed', stroke: shade(col, 0.6), pathLength: 1 }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadTop', stroke: col, pathLength: 1 }));
       // 윗면 하이라이트 — 빛 받는 쪽
-      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadShine', stroke: shade(col, 1.35) }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadShine', stroke: shade(col, 1.35), pathLength: 1 }));
       // 가운데 차선
-      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadLane' }));
+      rg.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'roadLane', pathLength: 1 }));
       g.appendChild(rg);
     });
 
@@ -1292,6 +1381,16 @@
         shape.appendChild(svgEl('line', { x1: cx - 8, y1: cy - 21, x2: cx - 8, y2: cy - 26, stroke: '#0b0e14', 'stroke-width': 1.1 }));
         shape.appendChild(svgEl('path', { d: 'M' + (cx - 8) + ' ' + (cy - 26) + ' h6 l-1.9 2.1 1.9 2.1 h-6 z', fill: roof, stroke: 'none' }));
       }
+      // 방금 지어졌으면 툭 떨어지는 연출 (한 번만)
+      (v.recent || []).forEach(function (r) {
+        if (r.kind === 'road' || r.id !== vert.i) return;
+        if (r.kind !== vert.b.t) return;
+        if (!isFresh(r)) return;
+        shape.classList.add('bldDrop');
+        var dust = svgEl('circle', { cx: cx, cy: cy + 8, r: 3, class: 'dust' });
+        g.appendChild(dust);
+        setTimeout(function () { dust.remove(); }, 800);
+      });
       // 도시 올리기 모드 — 내 마을을 누른다
       if (mode === 'city' && vert.b.p === v.me && vert.b.t === 'settlement') {
         shape.classList.add('pick');
@@ -1750,8 +1849,10 @@
     track.innerHTML = '';
     for (var i = 0; i < v.barbMax; i++) {
       var dot = el('i', i < v.barb ? 'on' : null);
+      if (i === v.barb - 1 && App.barbSeen !== v.barb) dot.classList.add('pop');
       track.appendChild(dot);
     }
+    App.barbSeen = v.barb;
     var cityTotal = 0, power = 0;
     v.players.forEach(function (q) {
       if (q.out) return;
@@ -2154,6 +2255,7 @@
   function winTarget(v) { return isExt(v) ? CK.WIN_VP : R.WIN_VP; }
 
   function showOver(v) {
+    if (!App.confettiDone) { App.confettiDone = true; confetti(); }
     var w = v.winner ? playerIn(v, v.winner) : null;
     $('overTitle').textContent = w ? w.name + ' 승리!' : '판이 끝났습니다';
     var body = $('overBody');

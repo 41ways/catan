@@ -695,3 +695,130 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .orderRow.tie { border-color: var(--gold); }
 .orderDot { width: 9px; height: 9px; border-radius: 50%; }
 .orderVal { color: var(--dim); font-weight: 700; }
+
+
+/* ==================== 분위기 — 연출 모음 ==================== */
+
+/* 7 — 도둑이야! 흙먼지를 일으키며 화면을 가로지른다 */
+.robberSweep {
+  position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden;
+}
+.sweepFig {
+  position: absolute; top: 38%; left: -14vw; font-size: 92px; line-height: 1;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.45));
+  animation: sweepRun 1.5s cubic-bezier(0.3, 0.05, 0.6, 1) forwards;
+}
+@keyframes sweepRun {
+  0%   { transform: translateX(0) scaleX(1) rotate(-6deg); }
+  20%  { transform: translateX(22vw) translateY(-14px) scaleX(1) rotate(4deg); }
+  40%  { transform: translateX(46vw) translateY(0)     scaleX(1) rotate(-5deg); }
+  60%  { transform: translateX(70vw) translateY(-14px) scaleX(1) rotate(4deg); }
+  100% { transform: translateX(130vw) translateY(0)    scaleX(1) rotate(-3deg); }
+}
+.sweepText {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%) scale(0.4);
+  font-size: clamp(34px, 7vw, 64px); font-weight: 900; letter-spacing: -0.03em;
+  color: #fff; -webkit-text-stroke: 2px #4a1d13;
+  text-shadow: 0 6px 0 #4a1d13, 0 10px 24px rgba(0,0,0,0.5);
+  opacity: 0; animation: sweepTextPop 1.5s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+@keyframes sweepTextPop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.4) rotate(-8deg); }
+  18%  { opacity: 1; transform: translateX(-50%) scale(1.15) rotate(3deg); }
+  30%  { transform: translateX(-50%) scale(1) rotate(-1deg); }
+  85%  { opacity: 1; transform: translateX(-50%) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.1); }
+}
+.puff {
+  position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #d9c39a, #a88b5c 60%, transparent 72%);
+  opacity: 0.85; pointer-events: none;
+  animation: puffOut 0.9s ease-out forwards;
+}
+@keyframes puffOut {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+  100% { transform: translate(-50%, -80%) scale(2.6); opacity: 0; }
+}
+
+/* 화면이 흔들린다 — 7, 야만족 상륙 */
+.shake { animation: shakeIt 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@keyframes shakeIt {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(3px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, 1px, 0); }
+  40%, 60% { transform: translate3d(5px, -1px, 0); }
+}
+
+/* 새 건물이 판에 툭 떨어진다 */
+.bldDrop {
+  transform-box: fill-box; transform-origin: center bottom;
+  animation: bldDrop 0.55s cubic-bezier(0.2, 1.3, 0.35, 1) both;
+}
+@keyframes bldDrop {
+  0%   { transform: translateY(-26px) scale(1.7); opacity: 0; }
+  55%  { transform: translateY(2px) scale(0.92); opacity: 1; }
+  75%  { transform: translateY(-3px) scale(1.04); }
+  100% { transform: none; }
+}
+.dust { fill: #c9b48c; opacity: 0.7; pointer-events: none; animation: dustRing 0.7s ease-out forwards; }
+@keyframes dustRing {
+  0%   { r: 3; opacity: 0.75; }
+  100% { r: 22; opacity: 0; }
+}
+
+/* 새 도로가 그어진다 */
+.roadDraw line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: roadDraw 0.55s ease-out forwards; }
+.roadDraw line:nth-child(2) { animation-delay: 0.05s; }
+.roadDraw line:nth-child(3) { animation-delay: 0.1s; }
+.roadDraw line:nth-child(4) { animation-delay: 0.15s; }
+.roadDraw line:nth-child(5) { animation-delay: 0.25s; }
+@keyframes roadDraw { to { stroke-dashoffset: 0; } }
+
+/* 놓을 수 있는 자리가 숨 쉬듯 깜빡인다 */
+.spotDot { animation: spotBreathe 1.2s ease-in-out infinite; }
+@keyframes spotBreathe { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* 바다가 천천히 일렁인다, 6·8은 은은히 빛난다, 도둑은 숨을 쉰다 */
+.seaRing { animation: seaBreathe 6s ease-in-out infinite; }
+@keyframes seaBreathe { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.07) saturate(1.08); } }
+.chipT.hot { animation: hotGlow 2.2s ease-in-out infinite; }
+@keyframes hotGlow { 0%,100% { filter: drop-shadow(0 0 0 rgba(192,52,43,0)); } 50% { filter: drop-shadow(0 0 3px rgba(192,52,43,0.8)); } }
+.robber { transform-box: fill-box; transform-origin: center bottom; animation: robberBob 2.4s ease-in-out infinite; }
+@keyframes robberBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+
+/* 거래 성사 — 악수 */
+.handshake {
+  position: fixed; z-index: 62; pointer-events: none; font-size: 34px; line-height: 1;
+  transform: translate(-50%, -50%) scale(0.3); opacity: 0;
+  animation: shakePop 1.1s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+@keyframes shakePop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25%  { opacity: 1; transform: translate(-50%, -60%) scale(1.25); }
+  40%  { transform: translate(-50%, -58%) scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+
+/* 승리 — 색종이 */
+.confetti { position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
+.confetti i {
+  position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.85; }
+}
+
+/* 야만족 트랙 — 함대가 한 칸 다가올 때 */
+.barbTrack i.pop { animation: barbPop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes barbPop { 0% { transform: scale(0.3); } 60% { transform: scale(1.6); } 100% { transform: none; } }
+
+/* 활동 상태가 된 기사 — 번쩍 */
+.knight.flash circle { animation: knightFlash 0.7s ease-out; }
+@keyframes knightFlash { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sweepFig, .sweepText, .bldDrop, .roadDraw line, .confetti i, .shake { animation: none !important; }
+}
