@@ -249,16 +249,6 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 /* 아래 패널 */
 .bottom { padding: 6px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
-.hand { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-height: 34px; }
-.rstack {
-  display: flex; align-items: center; gap: 4px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 9px; padding: 4px 8px; font-weight: 700; font-size: 14px;
-}
-.rstack .rname { font-size: 11px; font-weight: 600; color: var(--dim); }
-.rstack .rnum { min-width: 0.9em; text-align: right; }
-.rstack.zero { opacity: 0.35; }
-.rstack.selectable { cursor: pointer; }
-.rstack.sel { outline: 2px solid var(--gold); }
 .rc {
   display: inline-flex; align-items: center; justify-content: center;
   width: 19px; height: 19px; border-radius: 5px; font-size: 12px; line-height: 1;
@@ -375,10 +365,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 @media (max-width: 560px) {
   /* 좁으면 자원 이름은 접고 이모지와 숫자만 */
-  .rstack .rname { display: none; }
-  .hand { gap: 5px; }
-  .rstack { padding: 4px 7px; }
-  .bcard { padding: 7px 3px; }
+        .bcard { padding: 7px 3px; }
   .bcard .bname { font-size: 12px; }
   .bcard .bpts { font-size: 10px; }
   .bcard .bhead { gap: 3px; white-space: nowrap; }
@@ -429,7 +416,6 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .trkBtn { font-size: 11px; padding: 3px 7px; border-radius: 7px; }
 .trkBtn.can { border-color: var(--good); color: var(--ink); }
 
-.rstack.com { border-style: dashed; }
 .devchip.trk-trade { border-color: #d9a441; }
 .devchip.trk-politics { border-color: #5a8fd9; }
 .devchip.trk-science { border-color: #5aa96b; }
@@ -589,3 +575,76 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   border-radius: 9px; padding: 4px 9px; white-space: nowrap;
 }
 .pl .st.road { color: var(--faint); }
+
+
+/* ---------------- 손패 — 진짜 카드처럼 ---------------- */
+
+.hand {
+  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+  padding: 4px 0 2px;
+}
+.cardSlot {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  padding-top: 2px;
+}
+/* 겹쳐 쌓인 카드 — 장수가 많을수록 더 두껍게 보인다 */
+.fan { position: relative; width: 46px; height: 62px; }
+.resCard {
+  position: absolute; left: 0; top: 0;
+  width: 46px; height: 62px; border-radius: 7px;
+  background: var(--cardFace, #f7f1e2);
+  border: 1.5px solid rgba(0,0,0,0.45);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.28);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  transform: translate(calc(var(--i) * 3px), calc(var(--i) * -3px));
+  transition: transform 0.16s, filter 0.16s;
+}
+.resCard .resFace { font-size: 22px; line-height: 1; }
+.resCard .resName { font-size: 10px; font-weight: 700; color: #3a3227; letter-spacing: -0.02em; }
+/* 자원별 색띠 */
+.resCard::before {
+  content: ''; position: absolute; left: 4px; right: 4px; top: 4px; height: 4px; border-radius: 2px;
+  background: var(--tone, #bbb);
+}
+.resCard.r-b { --tone: #b5623f; }
+.resCard.r-l { --tone: #2f6b46; }
+.resCard.r-w { --tone: #8cc06a; }
+.resCard.r-g { --tone: #d9a441; }
+.resCard.r-o { --tone: #7b8794; }
+.resCard.r-c { --tone: #c46b9a; }
+.resCard.r-p { --tone: #6f9ec9; }
+.resCard.r-n { --tone: #c9a227; }
+.resCard.ghost {
+  background: transparent; border-style: dashed; border-color: var(--line);
+  box-shadow: none; opacity: 0.5;
+}
+.resCard.ghost .resFace { filter: grayscale(1); opacity: 0.5; }
+.resCard.ghost .resName { color: var(--faint); }
+.resCard.taken { filter: grayscale(0.8) brightness(0.85); transform: translate(calc(var(--i) * 3px), calc(var(--i) * -3px)) rotate(-6deg); }
+
+/* 몇 장인지 — 카드 위에 뱃지로 */
+.cardCount {
+  position: absolute; right: -5px; top: -6px; z-index: 3;
+  min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  background: #2b2419; color: #fdf8ec;
+  font-size: 12.5px; font-weight: 800; line-height: 20px; text-align: center;
+  border: 1.5px solid #fdf8ec;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+}
+.cardCount.zero { background: var(--line); color: var(--dim); border-color: var(--panel); }
+.cardSlot.empty .fan { height: 62px; }
+.cardSlot.selectable { cursor: pointer; }
+.cardSlot.selectable:hover .resCard { transform: translate(calc(var(--i) * 3px), calc(var(--i) * -5px)); }
+.cardSlot.sel .cardCount { background: var(--gold); color: var(--btnInk); }
+.cardSlot.com .resCard { border-style: dashed; }
+
+@media (prefers-color-scheme: dark) { :root { --cardFace: #efe6d2; } }
+:root[data-theme="dark"] { --cardFace: #efe6d2; }
+
+@media (max-width: 560px) {
+  .hand { gap: 8px; }
+  .fan, .resCard { width: 38px; height: 52px; }
+  .resCard .resFace { font-size: 18px; }
+  .resCard .resName { font-size: 9px; }
+  .cardCount { min-width: 18px; height: 18px; line-height: 18px; font-size: 11px; }
+}

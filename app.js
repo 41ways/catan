@@ -293,7 +293,8 @@
     if (has('(으)로 옮김')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1500, big: true };
     if (has('도둑을 옮깁니다', '도둑을 쫓')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1200 };
     if (has('가져갔습니다')) return { icon: '\uD83E\uDD1A', hold: 1600, big: true };
-    if (has('가져온 것', '빼앗긴 것')) return { icon: '\uD83D\uDC40', hold: 1300 };
+    if (has('빼앗긴 것')) return { icon: '\uD83D\uDE23', hold: 1600 };
+    if (has('가져온 것')) return { icon: '\uD83D\uDC40', hold: 1500 };
     if (has('도둑은 움직이지', '도둑은 그대로')) return { icon: '\uD83D\uDE34', hold: 1200 };
     if (has('버림 —')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1100 };
 
@@ -470,6 +471,21 @@
     } else if (!waitingForOther && wait) wait.remove();
   }
 
+  // 이번 강탈에서 오간 카드 — 당사자에게만 로그로 온다
+  function stolenCard(v) {
+    if (!v || !v.log) return null;
+    for (var i = v.log.length - 1; i >= Math.max(0, v.log.length - 8); i--) {
+      var l = v.log[i];
+      if (!l.mine) continue;
+      var m = /^(가져온|빼앗긴) 것: (.+)$/.exec(l.text);
+      if (!m) continue;
+      var nm = m[2], key = null;
+      cardsOf(v).forEach(function (c) { if (resName(c) === nm) key = c; });
+      return { role: m[1] === '가져온' ? 'thief' : 'victim', name: nm, key: key };
+    }
+    return null;
+  }
+
   // 색이 붙은 이름표 — 누가 누구에게 했는지 한눈에
   function nameTag(p) {
     var t = el('span', 'bnName', p ? p.name : '?');
@@ -517,12 +533,23 @@
       title = (item.owner ? item.owner.name : '') + ' 독점!';
       sub = text.replace(/^.*독점 — /, '');
     } else if (text.indexOf('가져갔습니다') >= 0) {
-      // 도둑으로 카드를 빼앗았다 — 무슨 카드인지는 숨긴다
+      // 도둑으로 카드를 빼앗았다 — 당사자에게만 무슨 카드인지 밝힌다
       var v0 = App.view;
       var st = v0 && v0.lastSteal;
-      title = '카드를 빼앗았습니다';
-      sub = '무슨 카드인지는 두 사람만 압니다';
-      $('bnIcon').textContent = '\uD83C\uDCCF';
+      var card = stolenCard(v0);
+      if (card && card.role === 'victim') {
+        title = '카드를 빼앗겼습니다';
+        sub = EMOJI[card.key] + ' ' + card.name + ' 한 장을 잃었습니다';
+        $('bnIcon').textContent = '\uD83D\uDE23';
+      } else if (card && card.role === 'thief') {
+        title = '카드를 빼앗았습니다';
+        sub = EMOJI[card.key] + ' ' + card.name + ' 한 장을 얻었습니다';
+        $('bnIcon').textContent = '\uD83E\uDD1A';
+      } else {
+        title = '카드를 빼앗았습니다';
+        sub = '무슨 카드인지는 두 사람만 압니다';
+        $('bnIcon').textContent = '\uD83C\uDCCF';
+      }
       if (st) {
         item.pair = { from: playerIn(v0, st.victim), to: playerIn(v0, st.thief), icon: '\u2192' };
       }
@@ -622,8 +649,8 @@
     if (App.bankKey === key) return;
     App.bankKey = key;
     var from = chipRect(t.p) || null;
-    var toStack = document.querySelector('.rstack[data-res="' + t.get + '"]');
-    var giveStack = document.querySelector('.rstack[data-res="' + t.give + '"]');
+    var toStack = document.querySelector('.cardSlot[data-res="' + t.get + '"]');
+    var giveStack = document.querySelector('.cardSlot[data-res="' + t.give + '"]');
     if (t.p === v.me && giveStack && toStack) {
       var g = giveStack.getBoundingClientRect(), h = toStack.getBoundingClientRect();
       var bankPt = { left: (g.left + h.left) / 2, top: g.top - 70, width: 0, height: 0 };
@@ -700,8 +727,11 @@
     App.stealKey = key;
     var rv = chipRect(t.victim), rt = chipRect(t.thief);
     if (!rv || !rt) return;
+    var known = stolenCard(v);
     setTimeout(function () {
-      var card = el('div', 'flyCard back', '?');
+      var card = known && known.key
+        ? el('div', 'flyCard', EMOJI[known.key])
+        : el('div', 'flyCard back', '?');
       var x0 = rv.left + rv.width / 2 - 15, y0 = rv.top + rv.height / 2 - 20;
       card.style.left = x0 + 'px';
       card.style.top = y0 + 'px';
@@ -877,7 +907,7 @@
     setTimeout(function () {
       var toRect;
       if (pid === App.view.me) {
-        var stack = document.querySelector('.rstack[data-res="' + resC + '"]');
+        var stack = document.querySelector('.cardSlot[data-res="' + resC + '"]');
         toRect = stack ? stack.getBoundingClientRect() : null;
       } else {
         var chip = document.querySelector('.pl[data-pid="' + pid + '"]');
@@ -901,7 +931,7 @@
         setTimeout(function () { card.remove(); }, 300);
         // 받는 쪽을 잠깐 밝혀 어디로 갔는지 확실히 보이게
         var host = (pid === App.view.me)
-          ? document.querySelector('.rstack[data-res="' + resC + '"]')
+          ? document.querySelector('.cardSlot[data-res="' + resC + '"]')
           : document.querySelector('.pl[data-pid="' + pid + '"]');
         if (host) {
           host.classList.add('gotIt');
@@ -1394,28 +1424,53 @@
     var p = meOf(v);
     if (!p || p.res === undefined) return;
     var discarding = v.phase === 'discard' && v.mustDiscard[v.me];
+
     cardsOf(v).forEach(function (c) {
       var n = p.res[c] || 0;
       var picked = App.discardSel.filter(function (x) { return x === c; }).length;
-      var d = el('div', 'rstack' + (n ? '' : ' zero') + (isExt(v) && CK.COM.indexOf(c) >= 0 ? ' com' : ''));
-      d.dataset.res = c;
-      d.appendChild(rchip(c));
-      d.appendChild(el('span', 'rname', resName(c)));
-      d.appendChild(el('span', 'rnum', discarding && picked ? (n - picked) + '/' + n : String(n)));
+      var slot = el('div', 'cardSlot' + (n ? '' : ' empty') +
+        (isExt(v) && CK.COM.indexOf(c) >= 0 ? ' com' : ''));
+      slot.dataset.res = c;
+      slot.title = resName(c) + ' ' + n + '장';
+
+      // 실제 카드처럼 겹쳐 쌓는다 (많으면 다섯 장까지만 보여주고 숫자로)
+      var fan = el('div', 'fan');
+      var show = Math.min(n, 5);
+      for (var i = 0; i < show; i++) {
+        var card = el('div', 'resCard r-' + c);
+        card.style.setProperty('--i', i);
+        var taken = discarding && picked > (show - 1 - i);
+        if (taken) card.classList.add('taken');
+        card.appendChild(el('span', 'resFace', EMOJI[c]));
+        card.appendChild(el('span', 'resName', resName(c)));
+        fan.appendChild(card);
+      }
+      if (!n) {
+        var ghost = el('div', 'resCard ghost r-' + c);
+        ghost.style.setProperty('--i', 0);
+        ghost.appendChild(el('span', 'resFace', EMOJI[c]));
+        ghost.appendChild(el('span', 'resName', resName(c)));
+        fan.appendChild(ghost);
+      }
+      slot.appendChild(fan);
+
+      var cnt = el('span', 'cardCount' + (n ? '' : ' zero'));
+      cnt.textContent = discarding && picked ? (n - picked) + '/' + n : String(n);
+      slot.appendChild(cnt);
+
       if (discarding && n > 0) {
-        d.classList.add('selectable');
-        if (picked) d.classList.add('sel');
-        d.onclick = function () {
+        slot.classList.add('selectable');
+        if (picked) slot.classList.add('sel');
+        slot.onclick = function () {
           var need = v.mustDiscard[v.me];
           if (picked < n && App.discardSel.length < need) App.discardSel.push(c);
-          else App.discardSel = App.discardSel.filter(function (x, i) {
-            return !(x === c && i === App.discardSel.indexOf(c));
+          else App.discardSel = App.discardSel.filter(function (x, i2) {
+            return !(x === c && i2 === App.discardSel.indexOf(c));
           });
           render();
         };
       }
-      d.title = resName(c);
-      box.appendChild(d);
+      box.appendChild(slot);
     });
 
     // 7이 나오면 버려야 하는 상태를 미리 경고한다
@@ -1430,7 +1485,6 @@
     }
 
     if (isExt(v)) {
-      // 진보카드 — 넉 장까지
       (p.cardList || []).forEach(function (c) {
         var b = el('button', 'devchip trk-' + c.track, CK.CARD_NAME[c.type]);
         b.title = CK.TRACK_NAME[c.track] + ' 진보카드';
@@ -1442,7 +1496,6 @@
       return;
     }
 
-    // 발전 카드
     (p.dev || []).forEach(function (d) {
       var b = el('button', 'devchip' + (d.fresh ? ' fresh' : ''), R.DEV_NAME[d.type]);
       if (d.type === 'vp') { b.classList.remove('fresh'); b.title = '승점 1점 — 그냥 점수로 들어갑니다'; b.onclick = function () { toast('승점 카드는 쓰는 카드가 아닙니다. 점수에 이미 들어가 있습니다.'); }; }
@@ -1451,6 +1504,7 @@
       box.appendChild(b);
     });
   }
+
 
 
   function playDevUI(type) {
