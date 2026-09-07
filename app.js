@@ -1080,6 +1080,17 @@
     pat.appendChild(svgEl('rect', { width: 9, height: 9, fill: '#14171f', 'fill-opacity': 0.16 }));
     pat.appendChild(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: '#14171f', 'stroke-width': 4, 'stroke-opacity': 0.5 }));
     defs.appendChild(pat);
+    // 섬이 바다 위에 살짝 떠 있는 느낌
+    var flt = svgEl('filter', { id: 'isleShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' });
+    var sh = svgEl('feDropShadow', { dx: 0, dy: 3, stdDeviation: 3.5, 'flood-color': '#0b0e14', 'flood-opacity': 0.35 });
+    flt.appendChild(sh);
+    defs.appendChild(flt);
+    // 타일 안쪽에 부드러운 빛 — 종이에 인쇄된 느낌
+    var grad = svgEl('radialGradient', { id: 'tileLight', cx: '38%', cy: '30%', r: '75%' });
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#fff', 'stop-opacity': 0.22 }));
+    grad.appendChild(svgEl('stop', { offset: '60%', 'stop-color': '#fff', 'stop-opacity': 0.04 }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#000', 'stop-opacity': 0.12 }));
+    defs.appendChild(grad);
     svg.appendChild(defs);
     var g = svgEl('g', {});
     svg.appendChild(g);
@@ -1096,7 +1107,9 @@
       g.appendChild(svgEl('polygon', { points: pts.join(' '), class: 'seaRing' }));
     })();
 
-    // 땅 타일
+    // 땅 타일 — 한 그룹으로 묶어 섬 전체에 그림자
+    var isle = svgEl('g', { class: 'isle', filter: 'url(#isleShadow)' });
+    g.appendChild(isle);
     v.board.hexes.forEach(function (h) {
       var cx = px(h.X), cy = py(h.Y);
       var robbedHere = h.i === v.robber;
@@ -1111,9 +1124,11 @@
         hexEl.classList.add('robTarget');
         hexEl.addEventListener('click', function () { clickRobber(h.i); });
       }
-      g.appendChild(hexEl);
+      isle.appendChild(hexEl);
+      // 인쇄된 종이 타일 같은 빛
+      isle.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), fill: 'url(#tileLight)', class: 'tileLight' }));
       if (robbedHere) {
-        g.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), fill: 'url(#hatch)', class: 'robHatch' }));
+        isle.appendChild(svgEl('polygon', { points: hexPoints(cx, cy), fill: 'url(#hatch)', class: 'robHatch' }));
       }
 
       // 육각형 안을 위아래로 나눠 쓴다 — 위는 자원, 아래는 숫자 칩
@@ -1562,11 +1577,14 @@
   /* ---------------- 아래쪽 — 손패와 행동 ---------------- */
 
   function renderHand(v) {
-    var box = $('hand');
-    box.innerHTML = '';
+    var outer = $('hand');
+    outer.innerHTML = '';
     var p = meOf(v);
     if (!p || p.res === undefined) return;
     var discarding = v.phase === 'discard' && v.mustDiscard[v.me];
+    // 카드 묶음 — 이 안의 것만 가운데 정렬에 들어간다
+    var box = el('div', 'handCards');
+    outer.appendChild(box);
 
     cardsOf(v).forEach(function (c) {
       var n = p.res[c] || 0;
@@ -1622,9 +1640,13 @@
     cardsOf(v).forEach(function (c) { total += p.res[c] || 0; });
     var limit = isExt(v) ? (p.handLimit || 7) : R.HAND_LIMIT;
     if (!discarding && total > limit) {
-      var warn = el('span', 'handWarn');
-      warn.textContent = '\u26A0\uFE0F 손패 ' + total + '장 — 7이 나오면 ' + Math.floor(total / 2) + '장을 버립니다';
-      warn.title = '한도는 ' + limit + '장입니다' + (isExt(v) ? ' (성벽 하나마다 +2)' : '');
+      // 정렬을 흔들지 않게 묶음 밖에 절대 위치로 붙인다
+      var warn = el('button', 'handWarn', '!');
+      warn.type = 'button';
+      warn.setAttribute('aria-label', '손패 한도 경고');
+      warn.dataset.tip = '손패 ' + total + '장 — 7이 나오면 ' + Math.floor(total / 2) + '장을 버립니다.\n한도는 ' +
+        limit + '장' + (isExt(v) ? ' (성벽 하나마다 +2)' : '') + '입니다.';
+      warn.onclick = function () { toast(warn.dataset.tip.replace('\n', ' ')); };
       box.appendChild(warn);
     }
 

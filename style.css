@@ -9,6 +9,8 @@
   --r-b: #c96f45; --r-l: #4d8a5c; --r-w: #a7c96a; --r-g: #e0b64f; --r-o: #98a4b8;
   --btnInk: #fff6ee;
   --shadow: 0 2px 10px rgba(80,60,25,0.10);
+  --wood0: #c9a06a; --wood1: #9c7040;
+  --paper: #f7efdc; --paper2: #efe4c9; --paperLine: #cdb98d;
 }
 :root[data-theme="dark"] {
   --bg0: #1e242f; --bg1: #0d1017;
@@ -18,23 +20,41 @@
   --sea: #223046; --sea2: #1c2839; --seaLine: #1a2436;
   --btnInk: #221a08;
   --shadow: 0 2px 12px rgba(0,0,0,0.35);
+  --wood0: #4a3423; --wood1: #22170f;
+  --paper: #232833; --paper2: #1b202a; --paperLine: #3a4152;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 body {
-  background: radial-gradient(120% 100% at 50% 0%, var(--bg0), var(--bg1));
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.18), transparent 60%),
+    radial-gradient(100% 80% at 50% 100%, rgba(0,0,0,0.18), transparent 60%),
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.028) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(88deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, var(--wood0), var(--wood1));
+  background-attachment: fixed;
   color: var(--ink);
   font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   line-height: 1.5; letter-spacing: -0.01em;
   overscroll-behavior: none;
 }
 button {
-  font: inherit; color: var(--ink); background: var(--panel2);
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+  font: inherit; color: var(--ink);
+  background: linear-gradient(180deg, rgba(255,255,255,0.45), rgba(0,0,0,0.04)), var(--paper2);
+  border: 1px solid var(--paperLine); border-radius: 10px; padding: 10px 14px;
   cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.12s;
 }
-button:active { transform: translateY(1px); }
-button.primary { background: var(--gold); border-color: var(--gold); color: var(--btnInk); font-weight: 700; }
+button:hover:not(:disabled) { filter: brightness(1.04); }
+button:active { transform: translateY(2px); box-shadow: 0 0 0 rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5); }
+button.primary {
+  background: linear-gradient(180deg, #d69a3c, #b4761f 60%, #9d651a);
+  border-color: #7a4f14; color: var(--btnInk); font-weight: 700;
+  box-shadow: 0 3px 0 #6d4410, inset 0 1px 0 rgba(255,255,255,0.35);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+button.primary:active { box-shadow: 0 0 0 #6d4410, inset 0 1px 0 rgba(255,255,255,0.35); transform: translateY(3px); }
 button.ghost { background: transparent; border: none; color: var(--dim); text-decoration: underline; }
 button.mini { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
 button:disabled { opacity: 0.4; cursor: default; }
@@ -108,9 +128,11 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .topRight { display: flex; align-items: center; gap: 8px; }
 .players { display: flex; gap: 6px; flex-wrap: wrap; }
 .pl {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(0,0,0,0.04)), var(--paper);
+  border: 1px solid var(--paperLine); border-radius: 10px;
   padding: 5px 9px; font-size: 12px; display: flex; align-items: center; gap: 6px;
-  border-left: 4px solid transparent;
+  border-left: 5px solid transparent;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.5);
 }
 .pl.turn { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .pl.turnMine { background: var(--panel2); box-shadow: 0 0 0 2px var(--gold); }
@@ -123,7 +145,15 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   border-radius: 5px; padding: 1px 5px; white-space: nowrap;
   background: var(--gold); color: var(--btnInk);
 }
-.boardBox { transition: box-shadow 0.3s; border-radius: 14px; }
+.boardBox {
+  transition: box-shadow 0.3s; border-radius: 14px;
+  background:
+    radial-gradient(80% 70% at 50% 45%, rgba(255,255,255,0.10), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.16));
+  border: 3px solid rgba(50,30,10,0.55);
+  box-shadow: inset 0 0 0 2px rgba(255,220,160,0.25), inset 0 0 40px rgba(0,0,0,0.25), 0 8px 22px rgba(0,0,0,0.28);
+}
 .pl .nm { font-weight: 700; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl .vp { font-weight: 800; color: var(--gold); }
 .pl .st { color: var(--dim); }
@@ -218,7 +248,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 .hex.robTarget { cursor: pointer; }
 .hex.robTarget:hover { filter: brightness(1.2); }
-.chipC { fill: #f2ead6; stroke: #0b0e14; stroke-width: 1; }
+.chipC { fill: #f2ead6; stroke: #5a4630; stroke-width: 1.2; filter: drop-shadow(0 1.5px 1px rgba(0,0,0,0.45)); }
+.tileLight { pointer-events: none; }
 .chipC, .chipT, .terrEmo, .robber { pointer-events: none; }
 .terrEmo { opacity: 0.95; }
 .chipT { font-weight: 800; fill: #2b2419; text-anchor: middle; }
@@ -441,7 +472,11 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .nowBar {
   display: flex; align-items: center; gap: 9px;
   padding: 9px 13px; margin-bottom: 6px; min-height: 40px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,0.35), transparent 55%),
+    var(--paper);
+  border: 1px solid var(--paperLine); border-radius: 11px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 3px 10px rgba(0,0,0,0.16);
   font-size: 14.5px; font-weight: 600; color: var(--ink);
   transition: background 0.25s, border-color 0.25s;
 }
@@ -559,6 +594,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 /* 로그 — 누구 이야기인지 색으로 */
 .logRow { display: flex; align-items: baseline; gap: 6px; }
+.log { padding: 4px 8px; border-radius: 8px; background: rgba(255,255,255,0.22); }
 .logDot {
   width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
   transform: translateY(-1px);
@@ -567,23 +603,43 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .logRow.last .logTxt { color: var(--ink); font-weight: 600; }
 
 
-/* 손패 넘침 경고 */
-.handWarn {
-  display: inline-flex; align-items: center;
-  font-size: 12px; font-weight: 600; color: #b3402f;
-  background: rgba(192,52,43,0.1); border: 1px solid rgba(192,52,43,0.35);
-  border-radius: 9px; padding: 4px 9px; white-space: nowrap;
-}
 .pl .st.road { color: var(--faint); }
 
 
 /* ---------------- 손패 — 부채처럼 펼친 카드 ---------------- */
 
-.hand {
-  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
-  justify-content: center;                 /* 가운데 정렬 */
-  padding: 6px 0 2px;
+.hand { display: flex; justify-content: center; padding: 6px 0 2px; }
+.handCards {
+  position: relative; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+  justify-content: center; max-width: 100%;
 }
+/* 경고 — 묶음 오른쪽에 매달린 느낌표. 정렬에는 영향을 주지 않는다 */
+.handWarn {
+  position: absolute; right: -34px; top: 50%; transform: translateY(-60%);
+  width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  background: linear-gradient(180deg, #e0563f, #b3402f); border: 1.5px solid #fff3e6; color: #fff;
+  font-size: 16px; font-weight: 900; line-height: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 0 rgba(192,52,43,0.5);
+  animation: warnPulse 1.6s ease-out infinite; cursor: help;
+}
+@keyframes warnPulse {
+  0%   { box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 0 rgba(192,52,43,0.55); }
+  100% { box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 12px rgba(192,52,43,0); }
+}
+.handWarn::after {
+  content: attr(data-tip); white-space: pre-line;
+  position: absolute; right: 0; bottom: calc(100% + 8px);
+  min-width: 220px; max-width: 70vw; padding: 8px 11px; border-radius: 9px;
+  background: #2b2419; color: #fdf8ec; font-size: 12.5px; font-weight: 600; line-height: 1.4; text-align: left;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+  opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity 0.15s, transform 0.15s;
+}
+.handWarn::before {
+  content: ''; position: absolute; right: 8px; bottom: calc(100% + 2px);
+  border: 6px solid transparent; border-top-color: #2b2419; opacity: 0; transition: opacity 0.15s;
+}
+.handWarn:hover::after, .handWarn:focus::after, .handWarn:hover::before, .handWarn:focus::before { opacity: 1; transform: none; }
+@media (max-width: 560px) { .handWarn { right: -28px; width: 22px; height: 22px; font-size: 13px; } }
 .cardSlot {
   position: relative; display: flex; flex-direction: column; align-items: center;
   padding-top: 4px;
@@ -603,6 +659,8 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   transition: transform 0.16s, filter 0.16s;
 }
 .resCard:first-child { margin-left: 0; }
+.resCard { background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0 1px, transparent 1px 3px), radial-gradient(120% 100% at 20% 0%, rgba(255,255,255,0.7), transparent 60%); }
+.cardSlot:hover .resCard:last-child { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-8px); box-shadow: 0 8px 14px rgba(0,0,0,0.3); }
 .resCard .resFace { font-size: 30px; line-height: 1; }
 .resCard .resName { font-size: 11px; font-weight: 700; color: #3a3227; letter-spacing: -0.02em; }
 /* 뒤에 깔린 카드는 색띠만 — 글자가 삐져나오지 않게 */
@@ -652,7 +710,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .resCard .resFace { font-size: 19px; }
   .resCard .resName { font-size: 8.5px; }
   .resCard::before { left: 3px; right: 3px; top: 3px; height: 3.5px; }
-  .resCard:nth-child(n+4) { display: none; }   /* 좁으면 세 장까지만 펼친다 */
+  .resCard:nth-last-child(n+4) { display: none; }   /* 좁으면 세 장까지만 — 맨 앞 카드는 남긴다 */
   .cardCount { min-width: 22px; height: 19px; line-height: 16px; font-size: 12px; bottom: -8px; right: 1px; padding: 0 5px; }
   .cardSlot { padding-top: 2px; }
 }
@@ -660,7 +718,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .hand { gap: 4px; }
   .resCard { width: 36px; height: 52px; margin-left: -26px; }
   .resCard .resFace { font-size: 17px; }
-  .resCard:nth-child(n+3) { display: none; }
+  .resCard:nth-last-child(n+3) { display: none; }
 }
 
 
