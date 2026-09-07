@@ -1,7 +1,22 @@
-# 카탄
+# 🌾 카탄
+
+![종류](https://img.shields.io/badge/%EC%A2%85%EB%A5%98-%EB%B3%B4%EB%93%9C%EA%B2%8C%EC%9E%84-4f7a3a?style=flat-square) ![인원](https://img.shields.io/badge/%EC%9D%B8%EC%9B%90-2~4%EC%9D%B8-555?style=flat-square) [![플레이](https://img.shields.io/badge/%ED%94%8C%EB%A0%88%EC%9D%B4-41ways.github.io/catan-d8332b?style=flat-square)](https://41ways.github.io/catan/) [![허브](https://img.shields.io/badge/%ED%97%88%EB%B8%8C-41ways%EC%9D%98%20%EB%A0%88%EB%93%9C%EB%B2%84%ED%8A%BC-b4571f?style=flat-square)](https://41ways.github.io/norara/)
 
 주사위가 자원을 나눠주고, 자원으로 도로·마을·도시를 짓는 카탄.
 방 코드 하나로 최대 4인이 붙는다. 서버도 계정도 없이 정적 파일만으로 돌아간다.
+
+## 한눈에
+
+| | |
+|---|---|
+| **종류** | 보드게임 · 온라인 |
+| **인원** | 2~4인 (봇으로 채우면 혼자도) |
+| **플레이** | **https://41ways.github.io/catan/** |
+| **로컬 실행** | `open index.html` (정적 파일, 서버 없음) |
+| **한 줄 규칙** | 주사위로 자원을 받아 도로·마을·도시를 짓고, 자기 차례에 10점을 먼저 넘기면 이긴다 |
+| **허브** | https://41ways.github.io/norara/ |
+
+**목차** — [규칙](#규칙) · [처음이면](#처음이면) · [조작](#조작) · [실행](#실행) · [통신](#통신) · [파일](#파일) · [봇](#봇) · [테스트](#테스트) · [알려진 제약](#알려진-제약)
 
 ## 규칙
 
