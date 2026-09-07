@@ -11,7 +11,7 @@
   --shadow: 0 2px 10px rgba(80,60,25,0.10);
   --wood0: #c9a06a; --wood1: #9c7040;
   --paper: #f7efdc; --paper2: #efe4c9; --paperLine: #cdb98d;
-  --display: "Do Hyeon", "Black Han Sans", "Apple SD Gothic Neo", sans-serif;   /* 나무 간판에 새긴 글씨 */
+  --display: "Hahmlet", "Nanum Myeongjo", "Apple Myungjo", Georgia, serif;      /* 옛 활자 — 표제와 버튼 */
   --serif: "Song Myung", "Nanum Myeongjo", "Apple Myungjo", Georgia, serif;     /* 옛 활자 — 부제와 설명 */
 }
 :root[data-theme="dark"] {
@@ -117,8 +117,8 @@ input, select {
 
 /* 로고 — 나무 간판에 새긴 금박 글씨 */
 .logo {
-  margin: 6px 0 0; font-family: var(--display); font-weight: 400;
-  font-size: clamp(64px, 17vw, 92px); line-height: 1; letter-spacing: 0.08em;
+  margin: 6px 0 0; font-family: var(--display); font-weight: 700;
+  font-size: clamp(62px, 16vw, 88px); line-height: 1.12; letter-spacing: 0.10em; padding-left: 0.10em;
 }
 .logo span {
   background: linear-gradient(180deg, #fff1c4 0%, #e6b64a 45%, #b4761f 60%, #f2d38a 100%);
@@ -144,7 +144,7 @@ input, select {
 .tfan .resCard:not(:last-child) .resFace, .tfan .resCard:not(:last-child) .resName { visibility: visible; }
 
 .tfoot { margin: 2px 0 0; font-family: var(--serif); font-size: 12px; letter-spacing: 0.06em; color: var(--faint); }
-button.big { width: 100%; max-width: 300px; padding: 14px; font-size: 17px; border-radius: 12px; font-family: var(--display); letter-spacing: 0.08em; }
+button.big { width: 100%; max-width: 300px; padding: 14px; font-size: 17px; border-radius: 12px; font-family: var(--display); font-weight: 600; letter-spacing: 0.14em; }
 button.ghost2 { background: transparent; color: var(--dim); box-shadow: none; }
 button.ghost2:hover { color: var(--ink); }
 .back { align-self: flex-start; padding: 0; margin-bottom: -4px; }
@@ -1133,10 +1133,11 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 /* 표제 서체 — 큰 글씨 여기저기 */
 .bnTitle, .sweepText, .diceSum, #overTitle, .modal h3, .sheet h3, .tourStep h3 {
-  font-family: var(--display); font-weight: 400; letter-spacing: 0.04em;
+  font-family: var(--display); font-weight: 600; letter-spacing: 0.04em;
 }
 .bnTitle { font-size: 24px; }
-.diceSum { font-size: 38px; }
+.diceSum { font-size: 38px; font-weight: 700; }
+.sweepText { font-weight: 700; }
 .bnSub, .diceNote, .panelFoot { font-family: var(--serif); }
 
 
