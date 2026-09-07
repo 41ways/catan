@@ -158,6 +158,27 @@
     if (s.recent.length > 30) s.recent.shift();
   }
 
+
+  /* ---------------- 조사 ---------------- */
+  // 받침에 따라 조사를 골라 붙인다 — '민수가', '벽돌이', '봇 둘이'
+  function hasJong(w) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    if (ch >= 0xAC00 && ch <= 0xD7A3) return (ch - 0xAC00) % 28 !== 0;
+    if (ch >= 0x30 && ch <= 0x39) return '013678'.indexOf(String.fromCharCode(ch)) >= 0;
+    return false;
+  }
+  function jongIs(w, code) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    return ch >= 0xAC00 && ch <= 0xD7A3 && (ch - 0xAC00) % 28 === code;
+  }
+  function GA(w) { return w + (hasJong(w) ? '이' : '가'); }
+  function EUL(w) { return w + (hasJong(w) ? '을' : '를'); }
+  function EUN(w) { return w + (hasJong(w) ? '은' : '는'); }
+  function WA(w) { return w + (hasJong(w) ? '과' : '와'); }
+  function EURO(w) { return w + (!hasJong(w) || jongIs(w, 8) ? '로' : '으로'); }
+
   function say(s, only, text) {
     s.log.push({ i: s.logId++, only: only, text: text });
     if (s.log.length > 140) s.log.shift();
@@ -390,7 +411,7 @@
     s.setupOrder = seq.concat(seq.slice().reverse());
     s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
     s.phase = 'setup';
-    say(s, null, nameOfP(s, firstId) + '이(가) 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
+    say(s, null, GA(nameOfP(s, firstId)) + ' 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
     say(s, null, '놓는 순서: ' + seq.map(function (i2) { return s.players[i2].name; }).join(' → ') + ', 두 바퀴째는 반대로');
   }
 
@@ -501,7 +522,7 @@
       } else if (p.cards.length >= MAX_CARDS) {
         // 손에 넉 장을 이미 들고 있으면 받자마자 더미 맨 아래로 보낸다
         s.progress[track].unshift(card);
-        say(s, p.id, '진보카드가 넉 장이라 ' + CARD_NAME[card] + '을(를) 받지 못했습니다.');
+        say(s, p.id, '진보카드가 넉 장이라 ' + EUL(CARD_NAME[card]) + ' 받지 못했습니다.');
         say(s, null, p.name + '은(는) 진보카드가 넉 장이라 받지 못했습니다.');
       } else {
         p.cards.push({ type: card, track: track });
@@ -555,10 +576,10 @@
       var claimants = Object.keys(want).filter(function (pid) { return want[pid][c] > 0; });
       if (claimants.length === 1) {
         want[claimants[0]][c] = s.bank[c];
-        say(s, null, NAME[c] + '이(가) 모자라 남은 만큼만 나갑니다.');
+        say(s, null, GA(NAME[c]) + ' 모자라 남은 만큼만 나갑니다.');
       } else {
         claimants.forEach(function (pid) { want[pid][c] = 0; });
-        say(s, null, NAME[c] + '이(가) 모자라 이번에는 아무도 못 받습니다.');
+        say(s, null, GA(NAME[c]) + ' 모자라 이번에는 아무도 못 받습니다.');
       }
     });
     var any = false, received = {};
@@ -763,7 +784,7 @@
     s.robber = hex;
     var h = s.board.hexes[hex];
     s.lastRobber = { from: fromHex, to: hex, p: pid, turn: s.turnCount, victim: null };
-    say(s, null, playerOf(s, pid).name + ' 도둑을 ' + (h.number ? h.number + ' 타일' : '사막') + '(으)로 옮김');
+    say(s, null, playerOf(s, pid).name + ' 도둑을 ' + EURO(h.number ? h.number + ' 타일' : '사막') + ' 옮김');
     var target = victim || (cands.length === 1 ? cands[0] : null);
     if (target) steal(s, pid, target);
     s.phase = s.robberBack;
@@ -779,7 +800,7 @@
     v.res[c]--; thief.res[c]++;
     if (s.lastRobber) s.lastRobber.victim = victimId;
     s.lastSteal = { thief: pid, victim: victimId, turn: s.turnCount };
-    say(s, null, thief.name + '이(가) ' + v.name + '에게서 카드 한 장을 가져갔습니다.');
+    say(s, null, GA(thief.name) + ' ' + v.name + '에게서 카드 한 장을 가져갔습니다.');
     say(s, pid, '가져온 것: ' + NAME[c]);
     say(s, victimId, '빼앗긴 것: ' + NAME[c]);
   }
@@ -992,11 +1013,11 @@
       var spots = knightRetreatSpots(s, victim.id, to);
       if (!spots.length) {
         victim.knights = victim.knights.filter(function (x) { return x !== vk; });
-        say(s, null, p.name + '이(가) ' + victim.name + '의 기사를 추방했고, 갈 곳이 없어 기사가 사라졌습니다.');
+        say(s, null, GA(p.name) + ' ' + victim.name + '의 기사를 추방했고, 갈 곳이 없어 기사가 사라졌습니다.');
       } else {
         vk.v = spots[0];
         s.displaced = { pid: victim.id, knight: vk, options: spots };
-        say(s, null, p.name + '이(가) ' + victim.name + '의 기사를 밀어냈습니다.');
+        say(s, null, GA(p.name) + ' ' + victim.name + '의 기사를 밀어냈습니다.');
       }
       k.v = to;
     } else {
@@ -1103,7 +1124,7 @@
       if (!hasFreeCity(p)) return;
       holder.metro[track] = false;
       p.metro[track] = true;
-      say(s, null, p.name + '이(가) ' + holder.name + '에게서 ' + TRACK_NAME[track] + ' 수도를 빼앗았습니다.');
+      say(s, null, GA(p.name) + ' ' + holder.name + '에게서 ' + TRACK_NAME[track] + ' 수도를 빼앗았습니다.');
       checkWin(s, p);
     }
   }
@@ -1124,7 +1145,7 @@
     if (give === get) return err('같은 것끼리는 바꾸지 않습니다.');
     var rate = tradeRate(p, give);
     if (p.res[give] < rate) return err(NAME[give] + ' ' + rate + '장이 있어야 합니다.');
-    if (s.bank[get] < 1) return err('은행에 ' + NAME[get] + '이(가) 없습니다.');
+    if (s.bank[get] < 1) return err('은행에 ' + GA(NAME[get]) + ' 없습니다.');
     p.res[give] -= rate; s.bank[give] += rate;
     take(s, p, get, 1);
     s.lastBank = { p: pid, give: give, rate: rate, get: get, turn: s.turnCount };
@@ -1477,7 +1498,7 @@
       if (!hit.length) return err('버리게 할 사람이 없습니다.');
       s.saboteurBack = s.phase;
       s.phase = 'discard';
-      return { ok: true, log: hit.join(', ') + '이(가) 절반을 버립니다.' };
+      return { ok: true, log: GA(hit.join(', ')) + ' 절반을 버립니다.' };
     },
     // 첩자 — 한 사람의 진보카드를 보고 한 장 가져온다
     spy: function (s, p, a) {
@@ -1489,7 +1510,7 @@
       var card = target.cards.splice(i, 1)[0];
       p.cards.push(card);
       say(s, p.id, '가져온 카드: ' + CARD_NAME[card.type]);
-      say(s, target.id, p.name + '이(가) 가져간 카드: ' + CARD_NAME[card.type]);
+      say(s, target.id, GA(p.name) + ' 가져간 카드: ' + CARD_NAME[card.type]);
       return { ok: true, log: target.name + '의 진보카드를 한 장 가져왔습니다.' };
     },
     // 음모 — 상대 기사 하나를 내 도로가 닿은 빈 자리로 밀어낸다
@@ -1558,7 +1579,7 @@
         done.push(q.name);
       });
       if (!done.length) return err('교환할 상대가 없습니다.');
-      return { ok: true, log: done.join(', ') + '와(과) 자원↔상품을 바꿨습니다.' };
+      return { ok: true, log: WA(done.join(', ')) + ' 자원↔상품을 바꿨습니다.' };
     },
     // 상선대 — 이번 차례 동안 고른 것 하나를 2:1로
     fleet: function (s, p, a) {
@@ -1566,7 +1587,7 @@
       if (ALL.indexOf(c) < 0) return err('무엇을 2:1로 쓸지 골라 주세요.');
       p.fleetPick = c;
       p.fleetTurn = s.turnCount;
-      return { ok: true, log: '이번 차례에 ' + NAME[c] + '을(를) 2:1로 바꿉니다.' };
+      return { ok: true, log: '이번 차례에 ' + EUL(NAME[c]) + ' 2:1로 바꿉니다.' };
     },
     // 전문 상인 — 점수가 더 높은 사람의 손을 보고 두 장 가져온다
     trader: function (s, p, a) {
@@ -1583,7 +1604,7 @@
         if (target.res[c] < tmp[c]) return err('상대가 그만큼 가지고 있지 않습니다.');
       }
       picks.forEach(function (c) { target.res[c]--; p.res[c]++; });
-      return { ok: true, log: target.name + '에게서 ' + picks.map(function (c) { return NAME[c]; }).join(' · ') + '을(를) 가져왔습니다.' };
+      return { ok: true, log: target.name + '에게서 ' + EUL(picks.map(function (c) { return NAME[c]; }).join(' · ')) + ' 가져왔습니다.' };
     },
     // 상품 독점 — 상품 하나를 모두에게서 한 장씩
     commMono: function (s, p, a) {

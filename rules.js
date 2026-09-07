@@ -254,6 +254,27 @@
     if (s.recent.length > 30) s.recent.shift();
   }
 
+
+  /* ---------------- 조사 ---------------- */
+  // 받침에 따라 조사를 골라 붙인다 — '민수가', '벽돌이', '봇 둘이'
+  function hasJong(w) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    if (ch >= 0xAC00 && ch <= 0xD7A3) return (ch - 0xAC00) % 28 !== 0;
+    if (ch >= 0x30 && ch <= 0x39) return '013678'.indexOf(String.fromCharCode(ch)) >= 0;
+    return false;
+  }
+  function jongIs(w, code) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    return ch >= 0xAC00 && ch <= 0xD7A3 && (ch - 0xAC00) % 28 === code;
+  }
+  function GA(w) { return w + (hasJong(w) ? '이' : '가'); }
+  function EUL(w) { return w + (hasJong(w) ? '을' : '를'); }
+  function EUN(w) { return w + (hasJong(w) ? '은' : '는'); }
+  function WA(w) { return w + (hasJong(w) ? '과' : '와'); }
+  function EURO(w) { return w + (!hasJong(w) || jongIs(w, 8) ? '로' : '으로'); }
+
   function say(s, only, text) { s.log.push({ i: s.logId++, only: only, text: text }); if (s.log.length > 120) s.log.shift(); }
   function nameOf(s, pid) { var p = playerOf(s, pid); return p ? p.name : '?'; }
   function playerOf(s, pid) {
@@ -469,7 +490,7 @@
     s.setupOrder = seq.concat(seq.slice().reverse());
     s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
     s.phase = 'setup';
-    say(s, null, nameOfP(s, firstId) + '이(가) 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
+    say(s, null, GA(nameOfP(s, firstId)) + ' 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
     say(s, null, '놓는 순서: ' + seq.map(function (i2) { return s.players[i2].name; }).join(' → ') + ', 두 바퀴째는 반대로');
   }
 
@@ -573,10 +594,10 @@
       var claimants = Object.keys(want).filter(function (pid) { return want[pid][c] > 0; });
       if (claimants.length === 1) {
         want[claimants[0]][c] = s.bank[c];
-        say(s, null, RES_NAME[c] + '이(가) 모자라 남은 만큼만 나갑니다.');
+        say(s, null, GA(RES_NAME[c]) + ' 모자라 남은 만큼만 나갑니다.');
       } else {
         claimants.forEach(function (pid) { want[pid][c] = 0; });
-        say(s, null, RES_NAME[c] + '이(가) 모자라 이번에는 아무도 못 받습니다.');
+        say(s, null, GA(RES_NAME[c]) + ' 모자라 이번에는 아무도 못 받습니다.');
       }
     });
     var any = false;
@@ -669,7 +690,7 @@
     s.robber = hex;
     var h = s.board.hexes[hex];
     s.lastRobber = { from: fromHex, to: hex, p: pid, turn: s.turnCount, victim: null };
-    say(s, null, nameOf(s, pid) + ' 도둑을 ' + TERRAIN_NAME[h.terrain] + (h.number ? ' ' + h.number : '') + '(으)로 옮김');
+    say(s, null, nameOf(s, pid) + ' 도둑을 ' + EURO(TERRAIN_NAME[h.terrain] + (h.number ? ' ' + h.number + ' 타일' : '')) + ' 옮김');
     var target = victim || (cands.length === 1 ? cands[0] : null);
     if (target) steal(s, pid, target);
     s.phase = s.robberBack;
@@ -685,7 +706,7 @@
     v.res[c]--; thief.res[c]++;
     if (s.lastRobber) s.lastRobber.victim = victimId;
     s.lastSteal = { thief: pid, victim: victimId, turn: s.turnCount };
-    say(s, null, thief.name + '이(가) ' + v.name + '에게서 카드 한 장을 가져갔습니다.');
+    say(s, null, GA(thief.name) + ' ' + v.name + '에게서 카드 한 장을 가져갔습니다.');
     say(s, pid, '가져온 것: ' + RES_NAME[c]);
     say(s, victimId, '빼앗긴 것: ' + RES_NAME[c]);
   }
@@ -855,7 +876,7 @@
     if (give === get) return err('같은 자원끼리는 바꾸지 않습니다.');
     var rate = tradeRate(p, give);
     if (p.res[give] < rate) return err(RES_NAME[give] + ' ' + rate + '장이 있어야 합니다.');
-    if (s.bank[get] < 1) return err('은행에 ' + RES_NAME[get] + '이(가) 없습니다.');
+    if (s.bank[get] < 1) return err('은행에 ' + GA(RES_NAME[get]) + ' 없습니다.');
     p.res[give] -= rate; s.bank[give] += rate;
     take(s, p, get, 1);
     s.lastBank = { p: pid, give: give, rate: rate, get: get, turn: s.turnCount };

@@ -54,7 +54,28 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove('on'); }, 2200);
   }
-  function myName() { return $('name').value.trim() || '이름없음'; }
+  function myName() { return $('name').value.trim() || '나'; }
+
+  /* ---------------- 조사 ---------------- */
+  // 받침에 따라 조사를 골라 붙인다 — '민수가', '벽돌이', '봇 둘이'
+  function hasJong(w) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    if (ch >= 0xAC00 && ch <= 0xD7A3) return (ch - 0xAC00) % 28 !== 0;
+    if (ch >= 0x30 && ch <= 0x39) return '013678'.indexOf(String.fromCharCode(ch)) >= 0;
+    return false;
+  }
+  function jongIs(w, code) {
+    if (!w) return false;
+    var ch = w.charCodeAt(w.length - 1);
+    return ch >= 0xAC00 && ch <= 0xD7A3 && (ch - 0xAC00) % 28 === code;
+  }
+  function GA(w) { return w + (hasJong(w) ? '이' : '가'); }
+  function EUL(w) { return w + (hasJong(w) ? '을' : '를'); }
+  function EUN(w) { return w + (hasJong(w) ? '은' : '는'); }
+  function WA(w) { return w + (hasJong(w) ? '과' : '와'); }
+  function EURO(w) { return w + (!hasJong(w) || jongIs(w, 8) ? '로' : '으로'); }
+
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -422,7 +443,7 @@
     if (has('\u2190', '첫 자원', '거둬', '받았습니다', '캤습니다', '거뒀습니다 —')) return { icon: '\uD83D\uDCE6', hold: 850 };
 
     // ── 도둑 ────────────────────────────────────────
-    if (has('(으)로 옮김')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1500, big: true };
+    if (has('도둑을', '옮김')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1500, big: true };
     if (has('도둑을 옮깁니다', '도둑을 쫓')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1200 };
     if (has('가져갔습니다')) return { icon: '\uD83E\uDD1A', hold: 1600, big: true };
     if (has('빼앗긴 것')) return { icon: '\uD83D\uDE23', hold: 1600 };
@@ -576,6 +597,11 @@
   function showCardReveal(type) {
     var c = CARD_INFO[type], box = $('cardReveal');
     if (!c || !box) return;
+    // 큰 알림이 떠 있으면 겹치지 않게 먼저 치운다
+    var bn = $('bigNews');
+    if (bn && !bn.classList.contains('hidden')) {
+      clearTimeout(App.bigTimer); bn.classList.add('hidden'); bn.classList.remove('out');
+    }
     var img = $('crImg'), hasImg = !!c.img;
     img.hidden = !hasImg;
     if (hasImg) img.src = c.img;
@@ -588,9 +614,12 @@
     $('crName').textContent = c.name;
     $('crDesc').textContent = c.desc;
     var card = box.querySelector('.crCard');
-    card.className = 'crCard ' + (c.cls || '') + (hasImg ? ' art' : '');
+    card.className = 'crSide crCard ' + (c.cls || '') + (hasImg ? ' art' : '');
     box.classList.remove('hidden');
-    card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+    var flip = $('crFlip'), wrap = box.querySelector('.crWrap');
+    flip.style.animation = 'none'; wrap.style.animation = 'none';
+    void flip.offsetWidth;
+    flip.style.animation = ''; wrap.style.animation = '';
     clearTimeout(App.crTimer);
     App.crTimer = setTimeout(function () { box.classList.add('hidden'); }, hasImg ? 3800 : 2600);
     box.onclick = function () { clearTimeout(App.crTimer); box.classList.add('hidden'); };
@@ -676,7 +705,7 @@
           waiting.map(function (p) { return p.name; }).join(', ') + '의 답을 기다리는 중';
       } else if (yes.length) {
         msg = (mineOffer ? '내 제안' : actor.name + '의 제안') + ' — ' +
-          yes.map(function (k) { return (playerIn(v, k) || {}).name; }).join(', ') + '이(가) 받겠다고 했습니다' +
+          GA(yes.map(function (k) { return (playerIn(v, k) || {}).name; }).join(', ')) + ' 받겠다고 했습니다' +
           (mineOffer ? '. 누구와 바꿀지 고르세요' : '');
       } else {
         msg = (mineOffer ? '내 제안' : actor.name + '의 제안') + ' — 모두 거절했습니다' +
@@ -692,7 +721,7 @@
       actor = need[0] || null;
       var mineTurn = need.some(function (p2) { return p2.id === v.me; });
       msg = v.order.tie
-        ? '동점! ' + need.map(function (p2) { return p2.name; }).join(', ') + '이(가) 다시 굴립니다'
+        ? '동점! ' + GA(need.map(function (p2) { return p2.name; }).join(', ')) + ' 다시 굴립니다'
         : '순서를 정합니다 — 가장 높은 눈이 첫 번째';
       if (mineTurn) msg += ' · 내 차례입니다';
     } else if (v.phase === 'setup') {
@@ -700,24 +729,24 @@
       var second = v.setup.idx >= v.players.length;
       var what = (isExt(v) && second) ? '도시' : '마을';
       msg = (actor && actor.id === v.me)
-        ? '내 차례 — ' + (v.setup.sub === 'settlement' ? what + '을(를) 놓으세요' : '도로를 놓으세요')
-        : (actor ? actor.name : '?') + '이(가) 자리를 고르는 중';
+        ? '내 차례 — ' + (v.setup.sub === 'settlement' ? EUL(what) + ' 놓으세요' : '도로를 놓으세요')
+        : GA(actor ? actor.name : '?') + ' 자리를 고르는 중';
     } else if (v.phase === 'discard') {
       var who = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid); }).filter(Boolean);
       actor = who[0] || null;
       msg = v.mustDiscard[v.me]
         ? '내 손패가 넘칩니다 — ' + v.mustDiscard[v.me] + '장을 골라 버리세요'
-        : who.map(function (p) { return p.name; }).join(', ') + '이(가) 카드를 버리는 중';
+        : GA(who.map(function (p) { return p.name; }).join(', ')) + ' 카드를 버리는 중';
     } else if (v.phase === 'robber') {
       actor = v.players[v.turn];
-      msg = mine ? '내 차례 — 도둑을 옮길 타일을 누르세요' : actor.name + '이(가) 도둑을 옮기는 중';
+      msg = mine ? '내 차례 — 도둑을 옮길 타일을 누르세요' : GA(actor.name) + ' 도둑을 옮기는 중';
     } else if (v.phase === 'roll') {
       actor = v.players[v.turn];
-      msg = mine ? '내 차례 — 주사위를 굴리세요' : actor.name + '이(가) 주사위를 굴릴 차례';
+      msg = mine ? '내 차례 — 주사위를 굴리세요' : GA(actor.name) + ' 주사위를 굴릴 차례';
     } else {
       actor = v.players[v.turn];
-      if (v.freeRoads > 0) msg = mine ? '공짜 도로 ' + v.freeRoads + '개를 놓으세요' : actor.name + '이(가) 도로를 놓는 중';
-      else msg = mine ? '내 차례 — 짓거나 거래하세요' : actor.name + '이(가) 짓고 거래하는 중';
+      if (v.freeRoads > 0) msg = mine ? '공짜 도로 ' + v.freeRoads + '개를 놓으세요' : GA(actor.name) + ' 도로를 놓는 중';
+      else msg = mine ? '내 차례 — 짓거나 거래하세요' : GA(actor.name) + ' 짓고 거래하는 중';
     }
 
     bar.classList.remove('step');
@@ -822,9 +851,9 @@
       if (st) {
         item.pair = { from: playerIn(v0, st.victim), to: playerIn(v0, st.thief), icon: '\u2192' };
       }
-    } else if (text.indexOf('(으)로 옮김') >= 0) {
+    } else if (text.indexOf('옮김') >= 0) {
       var v1 = App.view, rb = v1 && v1.lastRobber;
-      title = (item.owner ? item.owner.name : '') + '이(가) 도둑을 옮겼습니다';
+      title = GA(item.owner ? item.owner.name : '') + ' 도둑을 옮겼습니다';
       if (rb && v1.board.hexes[rb.to]) {
         var toHex = v1.board.hexes[rb.to];
         sub = toHex.number ? (toHex.number + ' 타일이 막혔습니다') : '사막으로 옮겼습니다';
@@ -898,6 +927,23 @@
   }
 
   // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
+  // 뒷면 카드를 겹쳐 몇 장인지 보여 준다 (내 것이면 앞면을 이미 아니까 숫자만)
+  function backStack(n, label, mine) {
+    var box = el('span', 'stCards' + (mine ? ' mine' : ''));
+    box.title = label + ' ' + n + '장';
+    if (!mine) {
+      var show = Math.min(n, 3);
+      for (var i = 0; i < show; i++) {
+        var b = el('i', 'miniBack');
+        b.style.marginLeft = i ? '-7px' : '0';
+        b.style.zIndex = String(10 - i);
+        box.appendChild(b);
+      }
+    } else box.appendChild(el('i', 'stIcon', label === '진보카드' ? '\uD83D\uDCDC' : '\u2699'));
+    box.appendChild(el('b', 'stNum', String(n)));
+    return box;
+  }
+
   function announceTurn(v) {
     var p = v.players[v.turn];
     if (!p) return;
@@ -915,7 +961,7 @@
     var mine = p.id === v.me;
     var round2 = v.setup.idx >= v.players.length;
     showPlaque(mine ? '\uD83C\uDFD8\uFE0F' : '\u23ED\uFE0F',
-      mine ? '내 차례 — 놓을 곳을 고르세요' : p.name + '이(가) 놓는 중',
+      mine ? '내 차례 — 놓을 곳을 고르세요' : GA(p.name) + ' 놓는 중',
       mine ? (round2 ? '두 번째 마을과 도로 — 이 마을 둘레의 자원을 바로 받습니다'
                     : '마을 하나와 이어진 도로 하나를 놓습니다')
            : (round2 ? '두 바퀴째는 반대 순서입니다' : '마을과 도로를 하나씩 놓습니다'),
@@ -1091,7 +1137,7 @@
     $('diceSum').textContent = ''; $('diceNote').textContent = '';
     var who = $('diceWho');
     if (who) {
-      who.textContent = roller ? (roller.id === (v && v.me) ? '내가 굴립니다' : roller.name + '이(가) 굴립니다') : '';
+      who.textContent = roller ? (roller.id === (v && v.me) ? '내가 굴립니다' : GA(roller.name) + ' 굴립니다') : '';
       who.style.color = roller ? (PCOLOR[roller.color] || '') : '';
     }
     var b1 = $('bd1'), b2 = $('bd2');
@@ -1127,7 +1173,7 @@
             });
           }
           note = names.length
-            ? sum + ' 타일에서 자원 — ' + names.join(', ') + '이(가) 받습니다'
+            ? sum + ' 타일에서 자원 — ' + GA(names.join(', ')) + ' 받습니다'
             : sum + ' 타일 — 받는 사람이 없습니다';
         }
         $('diceNote').textContent = note;
@@ -1905,8 +1951,9 @@
       cardIc.appendChild(document.createTextNode(String(p.cards)));
       cardIc.title = '자원 카드';
       d.appendChild(cardIc);
-      if (!isExt(v) && p.devCount) { var dv = el('span', 'st', '⚙' + p.devCount); dv.title = '발전 카드'; d.appendChild(dv); }
-      if (isExt(v) && p.cardCount) { var pc = el('span', 'st', '📜' + p.cardCount); pc.title = '진보카드'; d.appendChild(pc); }
+      // 남의 손에 든 카드는 뒷면으로 — 몇 장인지만 보인다
+      if (!isExt(v) && p.devCount) d.appendChild(backStack(p.devCount, '발전 카드', p.id === v.me));
+      if (isExt(v) && p.cardCount) d.appendChild(backStack(p.cardCount, '진보카드', p.id === v.me));
       if (!isExt(v) && p.knights) { var kn = el('span', 'st', '⚔' + p.knights); kn.title = '쓴 기사'; d.appendChild(kn); }
       // 남은 말 — 도로 / 마을 / 도시
       var left = el('span', 'left');
@@ -2465,11 +2512,11 @@
         var second = v.setup.idx >= v.players.length;
         var what = (isExt(v) && second) ? '도시' : '마을';
         msg.innerHTML = v.setup.sub === 'settlement'
-          ? '<b>' + what + '을(를) 놓을 자리</b>를 판에서 누르세요.' + (second ? ' 이번 ' + what + ' 둘레의 자원을 받습니다.' : '')
+          ? '<b>' + EUL(what) + ' 놓을 자리</b>를 판에서 누르세요.' + (second ? ' 이번 ' + what + ' 둘레의 자원을 받습니다.' : '')
           : '방금 놓은 ' + what + '에 <b>이을 도로</b>를 누르세요.';
       } else {
         var who = playerIn(v, v.setup.who);
-        msg.textContent = (who ? who.name : '?') + '이(가) 자리를 고르는 중…';
+        msg.textContent = GA(who ? who.name : '?') + ' 자리를 고르는 중…';
       }
       return;
     }
@@ -2481,7 +2528,7 @@
         btn('버리기', function () { act('discard', [App.discardSel.slice()]); App.discardSel = []; }, true, App.discardSel.length !== mine);
       } else {
         var names = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid).name; });
-        msg.textContent = names.join(', ') + '이(가) 버리는 중…';
+        msg.textContent = GA(names.join(', ')) + ' 버리는 중…';
       }
       return;
     }
@@ -2489,7 +2536,7 @@
     if (v.phase === 'robber') {
       msg.innerHTML = myTurn
         ? '<b>도둑을 옮길 타일</b>을 누르세요. 지금 자리(빗금)는 고를 수 없습니다.'
-        : playerIn(v, v.players[v.turn].id).name + '이(가) 도둑을 옮기는 중…';
+        : GA(playerIn(v, v.players[v.turn].id).name) + ' 도둑을 옮기는 중…';
       return;
     }
 
@@ -2683,7 +2730,27 @@
   }
 
 
+  // 누르고 있는 동안에는 다시 그리지 않는다.
+  // 누르는 사이에 화면을 갈아엎으면 버튼이 사라져 클릭이 먹지 않는다.
+  var holdTimer = null, releaseTimer = null;
+  function holdRender() {
+    App.pressing = true;
+    clearTimeout(releaseTimer); clearTimeout(holdTimer);
+    holdTimer = setTimeout(releaseRender, 1200);      // 뗀 신호를 못 받아도 굳지 않게
+  }
+  function releaseRender() {
+    clearTimeout(holdTimer); clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(function () {
+      App.pressing = false;
+      if (App.pendingRender) { App.pendingRender = false; render(); }
+    }, 60);                                            // click 까지 다 지나간 뒤에
+  }
+  document.addEventListener('pointerdown', holdRender, true);
+  document.addEventListener('pointerup', releaseRender, true);
+  document.addEventListener('pointercancel', releaseRender, true);
+
   function render() {
+    if (App.pressing) { App.pendingRender = true; return; }
     if (App.view) {
       renderCkBar(App.view);
       paintTurnFrame(App.view);
