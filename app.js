@@ -83,12 +83,22 @@
   // 판이 깔리는 연출을 시작한다 (한 판에 한 번)
   function startIntro() {
     App.intro = true;
+    App.introAt = Date.now();          // 다시 그려도 이어서 — 처음부터 다시 돌지 않게
     App.seenBuilt = App.seenBuilt || {};
     clearTimeout(App.introTimer);
     App.introTimer = setTimeout(function () {
       App.intro = false;
       render();
     }, INTRO_ALL);
+  }
+
+  // 등장 연출에서 이 조각이 아직 나올 차례가 남았는지 — 남았으면 지금 기준의 지연(음수 가능)을 준다.
+  // 다시 그려도 이미 나온 조각은 그대로 두고, 나오는 중인 조각은 이어서 돈다.
+  function introLeft(at, dur) {
+    if (!App.intro) return null;
+    var t = Date.now() - (App.introAt || 0);
+    if (t >= at + dur) return null;
+    return at - t;
   }
 
   function px(X) { return X * S * 0.8660254; }
@@ -113,7 +123,7 @@
     }), Math.floor(Math.random() * 1e9));
     App.build = null; App.discardSel = [];
     App.lastLogId = undefined; App.feed = []; App.feedBusy = false;
-    App.seenBuilt = {}; App.confettiDone = false;
+    App.seenBuilt = {}; App.confettiDone = false; App.orderSeen = {};
     show('game');
     startIntro();
     pushViews();
@@ -129,6 +139,10 @@
 
   function applyView(v) {
     var prev = App.view;
+    // 순서 정하기에 들어서면 무엇을 하는 단계인지 먼저 크게 알린다
+    if (v.phase === 'order' && (!prev || prev.phase !== 'order')) {
+      showPlaque('\uD83C\uDFB2', '순서를 정합니다', '모두 주사위를 굴려 가장 높은 눈이 첫 번째로 놓습니다', '', 2000);
+    }
     // 단계가 바뀌면 선택을 정리한다
     if (!prev || prev.phase !== v.phase || prev.turn !== v.turn) {
       App.build = null; App.discardSel = [];
@@ -150,11 +164,15 @@
         });
       }
     }
+    if (v.phase === 'order' || (prev && prev.phase === 'order')) showOrderRolls(prev, v);
     render();
     // 지난 차례에 무슨 일이 있었는지 한 줄씩 풀어 준다
     pushFeed(v);
     renderNow(v);
-    if (prev && prev.turn !== v.turn && v.phase !== 'over') announceTurn(v);
+    if (prev && prev.turn !== v.turn && v.phase !== 'over' && v.phase !== 'setup') announceTurn(v);
+    // 마을·도로를 놓는 동안에도 누구 차례인지 크게 알린다
+    if (v.phase === 'setup' && v.setup && v.setup.who &&
+        (!prev || !prev.setup || prev.setup.who !== v.setup.who)) announceSetupTurn(v);
     if (v.lastTrade) playTradeAnim(v);
     if (v.lastBank) playBankAnim(v);
     if (v.lastRobber) playRobberAnim(v);
@@ -211,7 +229,7 @@
     if (s.trade) return;
     var need = eng.needsAction(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (!need.length) return;
-    var wait = s.phase === 'order' ? 900 : s.phase === 'setup' ? 620 : s.phase === 'roll' ? 700 : 620;
+    var wait = s.phase === 'order' ? 2600 : s.phase === 'setup' ? 900 : s.phase === 'roll' ? 700 : 620;
     if (App.intro) wait += 700;                       // 판이 깔리는 동안은 천천히
     // 아직 중계할 줄이 남아 있으면 그만큼 늦춘다 (한 수씩 눈에 들어오게)
     wait += Math.min(1800, App.feed.length * 380 + (App.feedBusy ? 260 : 0));
@@ -589,6 +607,7 @@
       if (l.i <= App.lastLogId) return;
       App.lastLogId = l.i;
       if (l.text.indexOf('— ') === 0 && l.text.indexOf('차례') > 0) return;  // 큰 배너가 알려 준다
+      if (l.text.indexOf('순서 주사위') >= 0) return;                         // 주사위 연출이 대신한다
       var info = readLine(l.text);
       var drew = drawnCardOf(l.text);
       App.feed.push({
@@ -855,15 +874,18 @@
     }, award ? 2600 : (item.pair ? 2400 : 1900));
   }
 
-  // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
-  function announceTurn(v) {
-    var p = v.players[v.turn];
-    if (!p) return;
-    var box = $('bigNews');
-    $('bnIcon').textContent = p.id === v.me ? '\uD83D\uDC4B' : '\u23ED\uFE0F';
-    $('bnTitle').textContent = p.id === v.me ? '내 차례' : p.name + '의 차례';
-    $('bnTitle').style.color = PCOLOR[p.color] || '';
-    $('bnSub').textContent = p.id === v.me ? '주사위를 굴려 시작하세요' : '';
+  // 화면 가운데 큰 알림 — 지금 무슨 단계인지 알려 주는 데 쓴다
+  function showPlaque(icon, title, sub, color, hold) {
+    var box = $('bigNews'), inner = box.querySelector('.bigNewsInner');
+    var bnCard = $('bnCard');
+    if (bnCard) bnCard.hidden = true;
+    var pair = $('bnPair');
+    if (pair) { pair.innerHTML = ''; pair.classList.add('hidden'); }
+    inner.classList.remove('award');
+    $('bnIcon').textContent = icon;
+    $('bnTitle').textContent = title;
+    $('bnTitle').style.color = color || '';
+    $('bnSub').textContent = sub || '';
     box.classList.remove('hidden', 'out');
     clearTimeout(App.bigTimer);
     App.bigTimer = setTimeout(function () {
@@ -872,7 +894,32 @@
         box.classList.add('hidden');
         $('bnTitle').style.color = '';
       }, 300);
-    }, p.id === v.me ? 1100 : 800);
+    }, hold);
+  }
+
+  // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
+  function announceTurn(v) {
+    var p = v.players[v.turn];
+    if (!p) return;
+    var mine = p.id === v.me;
+    showPlaque(mine ? '\uD83D\uDC4B' : '\u23ED\uFE0F',
+      mine ? '내 차례' : p.name + '의 차례',
+      mine ? '주사위를 굴려 시작하세요' : '지켜보는 차례입니다',
+      PCOLOR[p.color] || '', mine ? 1600 : 1000);
+  }
+
+  // 마을·도로를 놓는 동안 — 지금 누가 놓을 차례인지
+  function announceSetupTurn(v) {
+    var p = playerIn(v, v.setup.who);
+    if (!p) return;
+    var mine = p.id === v.me;
+    var round2 = v.setup.idx >= v.players.length;
+    showPlaque(mine ? '\uD83C\uDFD8\uFE0F' : '\u23ED\uFE0F',
+      mine ? '내 차례 — 놓을 곳을 고르세요' : p.name + '이(가) 놓는 중',
+      mine ? (round2 ? '두 번째 마을과 도로 — 이 마을 둘레의 자원을 바로 받습니다'
+                    : '마을 하나와 이어진 도로 하나를 놓습니다')
+           : (round2 ? '두 바퀴째는 반대 순서입니다' : '마을과 도로를 하나씩 놓습니다'),
+      PCOLOR[p.color] || '', mine ? 1900 : 1000);
   }
 
   // 거래 — 카드가 두 사람 사이를 실제로 건너간다
@@ -1037,7 +1084,8 @@
     }
   }
   var diceSpin = null, diceHide = null;
-  function showDiceRoll(d, roller, v, done) {
+  function showDiceRoll(d, roller, v, done, opts) {
+    var forOrder = !!(opts && opts.order);
     var ov = $('diceOverlay');
     ov.classList.remove('hidden'); ov.classList.remove('out');
     $('diceSum').textContent = ''; $('diceNote').textContent = '';
@@ -1060,10 +1108,12 @@
         b1.classList.add('land'); b2.classList.add('land');
         setTimeout(function () { b1.classList.remove('land'); b2.classList.remove('land'); }, 400);
         var sum = d[0] + d[1];
-        if (sum === 7) screenShake();
+        if (sum === 7 && !forOrder) screenShake();
         $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
         var note;
-        if (sum === 7) {
+        if (forOrder) {
+          note = '순서 주사위 — 가장 높은 눈이 첫 번째로 놓습니다';
+        } else if (sum === 7) {
           note = '\uD83D\uDD75\uFE0F 도둑이 움직입니다 — 8장 이상은 절반을 버립니다';
         } else {
           var names = [];
@@ -1088,9 +1138,25 @@
             ov.classList.add('hidden');
             if (done) done();                    // 다 사라지고 나서 다음 연출
           }, 340);
-        }, 1500);
+        }, forOrder ? 1000 : 1500);
       }
     }, 85);
+  }
+
+  // 순서 주사위 — 누가 몇을 냈는지 화면 가운데에서 굴려 보여 준다
+  function showOrderRolls(prev, v) {
+    var rolls = (v.order && v.order.rolls) || {};
+    var seen = App.orderSeen || (App.orderSeen = {});
+    // 동점으로 다시 굴리게 되면 기록을 지워 다음 굴림도 보여 준다
+    Object.keys(seen).forEach(function (pid) { if (!rolls[pid]) delete seen[pid]; });
+    Object.keys(rolls).forEach(function (pid) {
+      var r = rolls[pid];
+      var key = r.d.join('') + '/' + r.sum;
+      if (seen[pid] === key) return;
+      seen[pid] = key;
+      var who = playerIn(v, pid);
+      showDiceRoll(r.d, who, v, null, { order: true });
+    });
   }
 
   /* ---------------- 카드 날아오기 ---------------- */
@@ -1369,10 +1435,11 @@
       var robbedHere = h.i === v.robber;
       var hexEl = svgEl('polygon', {
         points: hexPoints(cx, cy),
-        class: 'hex t-' + h.terrain + (robbedHere ? ' robbed' : '') + (App.intro ? ' tileIn' : ''),
+        class: 'hex t-' + h.terrain + (robbedHere ? ' robbed' : '') + (introLeft(h.i * 70, 420) !== null ? ' tileIn' : ''),
         'data-hex': h.i
       });
-      if (App.intro) hexEl.style.animationDelay = (h.i * 70) + 'ms';
+      var tl = introLeft(h.i * 70, 420);
+      if (tl !== null) hexEl.style.animationDelay = tl + 'ms';
       // 도둑 옮기기 — 내 차례면 타일을 누른다
       if (v.phase === 'robber' && myTurn && h.i !== v.robber) {
         hexEl.classList.add('robTarget');
@@ -1390,17 +1457,19 @@
       var hasNum = !!h.number;
       var emo = svgEl('text', {
         x: cx, y: cy + (hasNum ? -12 : 6), 'font-size': hasNum ? 21 : 26,
-        'text-anchor': 'middle', class: 'terrEmo' + (App.intro ? ' chipIn' : '')
+        'text-anchor': 'middle', class: 'terrEmo' + (introLeft(INTRO_TILES + h.i * 55, 340) !== null ? ' chipIn' : '')
       });
-      if (App.intro) emo.style.animationDelay = (INTRO_TILES + h.i * 55) + 'ms';
+      var el2 = introLeft(INTRO_TILES + h.i * 55, 340);
+      if (el2 !== null) emo.style.animationDelay = el2 + 'ms';
       emo.textContent = h.res ? EMOJI[h.res] : '\uD83C\uDF35';   // 사막은 🌵
       g.appendChild(emo);
 
       if (hasNum) {
         var hot = h.number === 6 || h.number === 8;
         var ny = cy + 17;
-        var chipG = svgEl('g', { class: 'chipG' + (App.intro ? ' chipIn' : ''), 'data-hex': h.i });
-        if (App.intro) chipG.style.animationDelay = (INTRO_TILES + h.i * 55) + 'ms';
+        var cl = introLeft(INTRO_TILES + h.i * 55, 340);
+        var chipG = svgEl('g', { class: 'chipG' + (cl !== null ? ' chipIn' : ''), 'data-hex': h.i });
+        if (cl !== null) chipG.style.animationDelay = cl + 'ms';
         chipG.appendChild(svgEl('circle', { cx: cx, cy: ny, r: 14, class: 'chipC' }));
         var t = svgEl('text', { x: cx, y: ny + 5, 'font-size': 15, class: 'chipT' + (hot ? ' hot' : '') });
         t.textContent = h.number;
@@ -2737,6 +2806,7 @@
     $('modeNote').textContent = ck
       ? '상품·기사·야만족이 더해진 확장. 도시를 개발해 수도를 세우고 13점을 먼저 넘기면 이깁니다.'
       : '주사위로 자원을 모아 도로·마을·도시를 짓습니다. 처음이면 여기부터.';
+    $('modeWarn').classList.toggle('hidden', !ck);
     try { localStorage.setItem('catan.mode', ck ? 'ck' : 'base'); } catch (e) {}
   };
   (function () {
