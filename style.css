@@ -113,6 +113,17 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   border-left: 4px solid transparent;
 }
 .pl.turn { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.pl.turnMine { background: var(--panel2); box-shadow: 0 0 0 2px var(--gold); }
+.pl.turnOther { opacity: 1; }
+.pl:not(.turn) { opacity: 0.62; }
+.turnMark { font-size: 10px; line-height: 1; animation: turnBlink 1.4s ease-in-out infinite; }
+@keyframes turnBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.turnTag {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+  border-radius: 5px; padding: 1px 5px; white-space: nowrap;
+  background: var(--gold); color: var(--btnInk);
+}
+.boardBox { transition: box-shadow 0.3s; border-radius: 14px; }
 .pl .nm { font-weight: 700; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl .vp { font-weight: 800; color: var(--gold); }
 .pl .st { color: var(--dim); }
@@ -467,6 +478,15 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   50%      { box-shadow: 0 0 0 3px rgba(192,52,43,0.18); }
 }
 .bnSub { white-space: pre-line; }
+.bnPair {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 10px;
+}
+.bnName {
+  font-size: 14px; font-weight: 800; padding: 3px 10px;
+  border: 2px solid var(--line); border-radius: 9px;
+}
+.bnArrow { font-size: 18px; color: var(--dim); font-weight: 800; }
 .nowBar.step .nowText { animation: nowIn 0.3s ease-out; }
 @keyframes nowIn {
   from { opacity: 0; transform: translateY(4px); }

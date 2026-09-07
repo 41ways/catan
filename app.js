@@ -242,6 +242,23 @@
     pushViews();
   }
 
+  // 판 테두리를 지금 차례인 사람 색으로 물들인다 — 내 차례면 더 진하게
+  function paintTurnFrame(v) {
+    var box = $('boardBox');
+    if (!box) return;
+    var cur = v.phase === 'setup' ? playerIn(v, v.setup.who) : v.players[v.turn];
+    if (!cur || v.phase === 'over') {
+      box.style.boxShadow = '';
+      box.classList.remove('myTurnFrame');
+      return;
+    }
+    var col = PCOLOR[cur.color] || '#888';
+    var mine = cur.id === v.me;
+    box.style.boxShadow = 'inset 0 0 0 ' + (mine ? '3px' : '2px') + ' ' + col +
+      (mine ? ', 0 0 18px -4px ' + col : '');
+    box.classList.toggle('myTurnFrame', mine);
+  }
+
   /* ---------------- 중계 — 로그를 한 줄씩 풀어 보여준다 ---------------- */
 
   // 로그 한 줄이 무슨 일인지 알아본다 (표시 전용)
@@ -273,8 +290,9 @@
     if (has('\u2190', '첫 자원', '거둬', '받았습니다', '캤습니다', '거뒀습니다 —')) return { icon: '\uD83D\uDCE6', hold: 850 };
 
     // ── 도둑 ────────────────────────────────────────
-    if (has('도둑을 옮깁니다', '(으)로 옮김', '도둑을 쫓')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1200 };
-    if (has('가져갔습니다')) return { icon: '\uD83E\uDD1A', hold: 1300 };
+    if (has('(으)로 옮김')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1500, big: true };
+    if (has('도둑을 옮깁니다', '도둑을 쫓')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1200 };
+    if (has('가져갔습니다')) return { icon: '\uD83E\uDD1A', hold: 1600, big: true };
     if (has('가져온 것', '빼앗긴 것')) return { icon: '\uD83D\uDC40', hold: 1300 };
     if (has('도둑은 움직이지', '도둑은 그대로')) return { icon: '\uD83D\uDE34', hold: 1200 };
     if (has('버림 —')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1100 };
@@ -452,6 +470,16 @@
     } else if (!waitingForOther && wait) wait.remove();
   }
 
+  // 색이 붙은 이름표 — 누가 누구에게 했는지 한눈에
+  function nameTag(p) {
+    var t = el('span', 'bnName', p ? p.name : '?');
+    if (p) {
+      t.style.borderColor = PCOLOR[p.color] || '';
+      t.style.color = PCOLOR[p.color] || '';
+    }
+    return t;
+  }
+
   // 큰 소식 — 잠깐 화면 가운데에. 업적은 더 오래, 더 크게
   function showBigNews(item) {
     var box = $('bigNews'), inner = box.querySelector('.bigNewsInner');
@@ -488,6 +516,23 @@
     } else if (text.indexOf('독점') >= 0) {
       title = (item.owner ? item.owner.name : '') + ' 독점!';
       sub = text.replace(/^.*독점 — /, '');
+    } else if (text.indexOf('가져갔습니다') >= 0) {
+      // 도둑으로 카드를 빼앗았다 — 무슨 카드인지는 숨긴다
+      var v0 = App.view;
+      var st = v0 && v0.lastSteal;
+      title = '카드를 빼앗았습니다';
+      sub = '무슨 카드인지는 두 사람만 압니다';
+      $('bnIcon').textContent = '\uD83C\uDCCF';
+      if (st) {
+        item.pair = { from: playerIn(v0, st.victim), to: playerIn(v0, st.thief), icon: '\u2192' };
+      }
+    } else if (text.indexOf('(으)로 옮김') >= 0) {
+      var v1 = App.view, rb = v1 && v1.lastRobber;
+      title = (item.owner ? item.owner.name : '') + '이(가) 도둑을 옮겼습니다';
+      if (rb && v1.board.hexes[rb.to]) {
+        var toHex = v1.board.hexes[rb.to];
+        sub = toHex.number ? (toHex.number + ' 타일이 막혔습니다') : '사막으로 옮겼습니다';
+      } else sub = '';
     } else if (text.indexOf('수호자') >= 0) {
       award = true;
       title = (item.owner ? item.owner.name : '') + ' 카탄의 수호자!';
@@ -501,6 +546,18 @@
     $('bnTitle').textContent = title;
     $('bnTitle').style.color = item.owner ? (PCOLOR[item.owner.color] || '') : '';
     $('bnSub').textContent = sub;
+    // 두 사람 사이에 일어난 일이면 '누가 → 누구' 를 색으로 보여준다
+    var pair = $('bnPair');
+    if (pair) {
+      pair.innerHTML = '';
+      if (item.pair) {
+        pair.appendChild(nameTag(item.pair.from));
+        var arrow = el('span', 'bnArrow', item.pair.icon || '\u2192');
+        pair.appendChild(arrow);
+        pair.appendChild(nameTag(item.pair.to));
+        pair.classList.remove('hidden');
+      } else pair.classList.add('hidden');
+    }
     inner.classList.toggle('award', award);
     box.classList.remove('hidden', 'out');
     clearTimeout(App.bigTimer);
@@ -511,7 +568,7 @@
         $('bnTitle').style.color = '';
         inner.classList.remove('award');
       }, 300);
-    }, award ? 2200 : 1500);
+    }, award ? 2600 : (item.pair ? 2400 : 1900));
   }
 
   // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
@@ -1278,10 +1335,19 @@
       var d = el('div', 'pl' + (p.out ? ' out' : ''));
       d.dataset.pid = p.id;
       d.style.borderLeftColor = PCOLOR[p.color];
-      if ((v.phase === 'setup' ? v.setup.who === p.id : v.turn === i) && v.phase !== 'over') d.classList.add('turn');
+      var isTurn = (v.phase === 'setup' ? v.setup.who === p.id : v.turn === i) && v.phase !== 'over';
+      if (isTurn) {
+        d.classList.add('turn');
+        d.classList.add(p.id === v.me ? 'turnMine' : 'turnOther');
+        var mark = el('span', 'turnMark', '\u25B6');
+        mark.style.color = PCOLOR[p.color];
+        mark.title = '지금 차례';
+        d.appendChild(mark);
+      }
       var nm = el('span', 'nm', p.name);
       d.appendChild(nm);
       if (p.id === v.me) d.appendChild(el('span', 'meTag', '나'));
+      if (isTurn) d.appendChild(el('span', 'turnTag', p.id === v.me ? '내 차례' : '차례'));
       d.appendChild(el('span', 'vp', (p.id === v.me && p.vpFull !== undefined ? p.vpFull : p.vp) + '점'));
       var cardIc = el('span', 'st');
       cardIc.appendChild(el('i', 'cardIc'));
@@ -1985,7 +2051,10 @@
   }
 
   function render() {
-    if (App.view) renderCkBar(App.view);
+    if (App.view) {
+      renderCkBar(App.view);
+      paintTurnFrame(App.view);
+    }
     var v = App.view;
     if (!v) return;
     renderBoard(v);
