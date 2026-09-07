@@ -190,6 +190,33 @@
     // 지난 차례에 무슨 일이 있었는지 한 줄씩 풀어 준다
     pushFeed(v);
     renderNow(v);
+    // 순서가 정해진 순간 — 결과를 읽고 넘어간다
+    if (prev && prev.phase === 'order' && v.phase === 'setup') {
+      var seq = setupOrderNames(v), rolls = (v.order && v.order.rolls) || {};
+      gateSoon(700, '\uD83E\uDD47', '순서가 정해졌습니다',
+        (seq[0] ? seq[0].name : '') + '부터 마을과 도로를 하나씩 놓습니다. 두 바퀴째는 반대 순서입니다.',
+        seq.map(function (p, i) {
+          var r = rolls[p.id];
+          return {
+            name: (i + 1) + '. ' + p.name + (p.id === v.me ? ' (나)' : ''),
+            val: r ? (r.d[0] + ' + ' + r.d[1] + ' = ' + r.sum) : '',
+            color: PCOLOR[p.color]
+          };
+        }));
+    }
+    // 준비가 끝나고 본게임이 시작되는 순간
+    if (prev && prev.phase === 'setup' && v.phase !== 'setup' && v.phase !== 'over') {
+      var starter = v.players[v.turn], meP = playerIn(v, v.me);
+      var rows = [];
+      if (meP && meP.res) {
+        RES.forEach(function (c) {
+          if (meP.res[c]) rows.push({ name: EMOJI[c] + ' ' + resName(c), val: meP.res[c] + '장' });
+        });
+      }
+      gateSoon(700, '\uD83C\uDFB2', '준비 끝 — 이제 본게임',
+        (starter ? starter.name : '') + '부터 주사위를 굴립니다. 나온 눈과 같은 숫자 타일 둘레에 내 마을이 있으면 자원을 받습니다.',
+        rows.length ? rows : null);
+    }
     if (prev && prev.turn !== v.turn && v.phase !== 'over' && v.phase !== 'setup') announceTurn(v);
     // 마을·도로를 놓는 동안에도 누구 차례인지 크게 알린다
     if (v.phase === 'setup' && v.setup && v.setup.who &&
@@ -239,6 +266,7 @@
     var s = App.state, eng = E();
     if (!s || s.phase === 'over') return;
     clearTimeout(App.botTimer);
+    if (App.hold) return;                              // 관문이 떠 있으면 봇도 기다린다
     // 거래 응답이 먼저다
     var pend = eng.tradePending(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (pend.length) {
@@ -248,9 +276,12 @@
     }
     // 제안이 떠 있는데 응답이 다 모였으면 사람(제안자)의 몫 — 봇은 제안하지 않는다
     if (s.trade) return;
-    var need = eng.needsAction(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
+    var all = eng.needsAction(s);
+    // 순서 정하기는 사람이 먼저 굴린 뒤에 봇이 이어 굴린다 — 그래야 무슨 일이 일어나는지 보인다
+    if (s.phase === 'order' && all.some(function (pid) { return !eng.playerOf(s, pid).bot; })) return;
+    var need = all.filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (!need.length) return;
-    var wait = s.phase === 'order' ? 2600 : s.phase === 'setup' ? 900 : s.phase === 'roll' ? 700 : 620;
+    var wait = s.phase === 'order' ? 2900 : s.phase === 'setup' ? 1300 : s.phase === 'roll' ? 900 : 820;
     if (App.intro) wait += 700;                       // 판이 깔리는 동안은 천천히
     // 아직 중계할 줄이 남아 있으면 그만큼 늦춘다 (한 수씩 눈에 들어오게)
     wait += Math.min(1800, App.feed.length * 380 + (App.feedBusy ? 260 : 0));
@@ -429,8 +460,8 @@
     if (has('최강 기사단')) return { icon: '\uD83D\uDEE1\uFE0F', hold: 1500, big: true };
     if (has('수도 건설', '수도를 빼앗')) return { icon: '\uD83C\uDFF0', hold: 1500, big: true };
     if (has('절반 버리기')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1600, big: true };
-    if (has('첫 번째로 놓습니다')) return { icon: '\uD83E\uDD47', hold: 1900, big: true };
-    if (has('놓는 순서:')) return { icon: '\uD83D\uDD22', hold: 1900, big: true };
+    if (has('첫 번째로 놓습니다')) return { icon: '\uD83E\uDD47', hold: 1000 };   // 관문에서 크게 보여 준다
+    if (has('놓는 순서:')) return { icon: '\uD83D\uDD22', hold: 1000 };
     if (has('순서 주사위')) return { icon: '\uD83C\uDFB2', hold: 900 };
     if (has('동점')) return { icon: '\uD83D\uDD01', hold: 1400, big: true };
     if (has('독점')) return { icon: '\uD83E\uDDF2', hold: 1500, big: true };
@@ -967,7 +998,80 @@
     }, hold);
   }
 
+  // 단계가 바뀔 때 한 번 멈춰서, 무슨 일이 있었고 다음에 뭘 하는지 읽고 넘어가게 한다
+  function showGate(icon, title, sub, rows) {
+    var box = $('gate');
+    if (!box) return;
+    $('gateIcon').textContent = icon;
+    $('gateTitle').textContent = title;
+    $('gateSub').textContent = sub || '';
+    var list = $('gateList');
+    list.innerHTML = '';
+    (rows || []).forEach(function (r) {
+      var row = el('div', 'gateRow');
+      if (r.color) row.style.borderLeftColor = r.color;
+      row.appendChild(el('span', 'grName', r.name));
+      row.appendChild(el('span', 'grVal', r.val || ''));
+      list.appendChild(row);
+    });
+    list.classList.toggle('hidden', !(rows && rows.length));
+    App.hold = true;                       // 봇은 기다린다
+    clearTimeout(App.botTimer);
+    box.classList.remove('hidden');
+    var close = function () {
+      if (box.classList.contains('hidden')) return;
+      clearTimeout(App.gateTimer);
+      box.classList.add('hidden');
+      App.hold = false;
+      render();
+      scheduleBot();
+    };
+    $('gateBtn').onclick = close;
+    box.onclick = function (e) { if (e.target === box) close(); };
+    clearTimeout(App.gateTimer);
+    App.gateTimer = setTimeout(close, 60000);   // 자리를 아주 오래 비웠을 때만 알아서 넘어간다
+  }
+
+  // 연출이 끝난 뒤에 관문을 띄운다. 그 사이 봇은 멈춰 있는다.
+  function gateSoon(delay, icon, title, sub, rows) {
+    App.hold = true;
+    clearTimeout(App.botTimer); clearTimeout(App.gateSoonTimer);
+    var tries = 0;
+    var tick = function () {
+      var ov = $('diceOverlay');
+      var busy = ov && !ov.classList.contains('hidden');     // 주사위가 굴러가는 중이면 그것부터
+      if (busy && tries++ < 32) { App.gateSoonTimer = setTimeout(tick, 250); return; }
+      showGate(icon, title, sub, rows);
+    };
+    App.gateSoonTimer = setTimeout(tick, delay);
+  }
+
+  // 놓는 순서를 사람 이름으로 풀어 준다
+  function setupOrderNames(v) {
+    var first = v.order && v.order.first;
+    var idx = 0;
+    v.players.forEach(function (p, i) { if (p.id === first) idx = i; });
+    var seq = [];
+    for (var k = 0; k < v.players.length; k++) {
+      var p = v.players[(idx + k) % v.players.length];
+      if (!p.out) seq.push(p);
+    }
+    return seq;
+  }
+
   // 차례가 넘어갈 때 — 누구 차례인지 확실히 알려준다
+  // 좁은 화면에서 판을 크게 쓰기 위해, 지금 무엇을 하는 중인지 화면에 표시해 둔다
+  function paintPlayMode(v) {
+    var g = $('game');
+    if (!g) return;
+    var mine = v.phase === 'setup' ? (v.setup && v.setup.who === v.me) : isMyTurn(v);
+    var placing = mine && (v.phase === 'setup' || v.phase === 'robber' || !!App.build || v.freeRoads > 0);
+    // 순서를 정하는 동안에는 짓기 칸이 아무 쓸모가 없다 — 접어서 판에 자리를 준다
+    g.classList.toggle('ordering', v.phase === 'order');
+    g.classList.toggle('mine', !!mine);
+    g.classList.toggle('placing', !!placing);
+  }
+
   // 뒷면 카드를 겹쳐 몇 장인지 보여 준다 (내 것이면 앞면을 이미 아니까 숫자만)
   function backStack(n, label, mine) {
     var box = el('span', 'stCards' + (mine ? ' mine' : ''));
@@ -992,7 +1096,7 @@
     showPlaque(mine ? '\uD83D\uDC4B' : '\u23ED\uFE0F',
       mine ? '내 차례' : p.name + '의 차례',
       mine ? '주사위를 굴려 시작하세요' : '지켜보는 차례입니다',
-      PCOLOR[p.color] || '', mine ? 1600 : 1000);
+      PCOLOR[p.color] || '', mine ? 2200 : 1100);
   }
 
   // 마을·도로를 놓는 동안 — 지금 누가 놓을 차례인지
@@ -1749,7 +1853,7 @@
         var line = svgEl('line', {
           x1: ax + (bx2 - ax) * t, y1: ay + (by2 - ay) * t,
           x2: bx2 + (ax - bx2) * t, y2: by2 + (ay - by2) * t,
-          'stroke-width': 9, class: 'edgeHit'
+          'stroke-width': 16, class: 'edgeHit'
         });
         line.addEventListener('click', function () { clickEdge(ei); });
         g.appendChild(line);
@@ -1758,8 +1862,11 @@
       v.legal.settlements.forEach(function (vi) {
         var vert = v.board.verts[vi];
         var c = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 8, class: 'spotDot' });
-        c.addEventListener('click', function () { clickVertex(vi); });
         g.appendChild(c);
+        // 손가락으로 누를 수 있게 보이지 않는 넓은 과녁을 덧댄다
+        var hit = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 19, class: 'spotHit' });
+        hit.addEventListener('click', function () { clickVertex(vi); });
+        g.appendChild(hit);
       });
     }
 
@@ -2796,8 +2903,31 @@
   document.addEventListener('pointerup', releaseRender, true);
   document.addEventListener('pointercancel', releaseRender, true);
 
+  // 지금 어느 단계인지 위쪽에 늘 보이게
+  function renderPhaseBar(v) {
+    var bar = $('phaseBar');
+    if (!bar) return;
+    if (!v || v.phase === 'over') { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    var now = v.phase === 'order' ? 'order' : v.phase === 'setup' ? 'setup' : 'play';
+    var seen = false;
+    bar.querySelectorAll('.phStep').forEach(function (e) {
+      var ph = e.getAttribute('data-ph');
+      var isNow = ph === now;
+      if (isNow) seen = true;
+      e.classList.toggle('on', isNow);
+      e.classList.toggle('done', !isNow && !seen);
+    });
+    var last = bar.querySelector('[data-ph="play"]');
+    last.childNodes[1].nodeValue = now === 'play' ? ('본게임 · ' + Math.max(1, v.turnCount) + '번째 차례') : '본게임';
+  }
+
   function render() {
     if (App.pressing) { App.pendingRender = true; return; }
+    if (App.view) {
+      renderPhaseBar(App.view);
+      paintPlayMode(App.view);
+    }
     if (App.view) {
       renderCkBar(App.view);
       paintTurnFrame(App.view);

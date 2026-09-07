@@ -1324,3 +1324,105 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .ckDeck.d-sci { border-left-color: #4f8c46; }
 .ckDeck.d-pol { border-left-color: #4a72a8; }
 .ckDeck.d-tra { border-left-color: #d9a441; }
+
+
+/* ==================== 단계 표시줄 ==================== */
+.phaseBar {
+  display: flex; gap: 6px; align-items: center; justify-content: center;
+  padding: 6px 10px 0; flex-wrap: wrap;
+}
+.phStep {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; color: var(--faint);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
+  padding: 3px 10px 3px 4px;
+}
+.phStep i {
+  width: 17px; height: 17px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-style: normal; font-size: 10.5px;
+  background: var(--line); color: var(--panel); font-weight: 800;
+}
+.phStep.done { color: var(--dim); }
+.phStep.done i { background: var(--good); color: #fff; }
+.phStep.on {
+  color: var(--ink); background: var(--panel); border-color: var(--gold);
+  box-shadow: 0 0 0 1.5px var(--gold);
+}
+.phStep.on i { background: var(--gold); color: var(--btnInk); }
+
+/* ==================== 단계 관문 ==================== */
+.gate {
+  position: fixed; inset: 0; z-index: 82; display: flex; align-items: center; justify-content: center;
+  background: rgba(22, 14, 5, 0.55); padding: 20px; animation: tFadeIn 0.2s ease;
+}
+.gateInner {
+  width: min(360px, 92vw); max-height: 86vh; overflow: auto; text-align: center;
+  background: linear-gradient(170deg, var(--paper), var(--paper2));
+  border: 2px solid var(--paperLine); border-radius: 16px; padding: 20px 18px 16px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.5), inset 0 0 0 4px rgba(255,255,255,0.3);
+  animation: crPop 0.34s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.gateIcon { font-size: 40px; line-height: 1; }
+.gateTitle {
+  font-family: var(--display); font-weight: 700; font-size: 23px; color: var(--ink);
+  margin-top: 6px; letter-spacing: 0.02em;
+}
+.gateSub { font-size: 13.5px; line-height: 1.65; color: var(--dim); margin-top: 6px; }
+.gateList { display: flex; flex-direction: column; gap: 5px; margin: 12px 0 4px; }
+.gateRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: rgba(0,0,0,0.05); border-left: 4px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; font-size: 13.5px;
+}
+.gateRow .grName { font-weight: 700; }
+.gateRow .grVal { color: var(--dim); font-variant-numeric: tabular-nums; }
+.gateBtn { width: 100%; margin-top: 12px; padding: 12px; font-size: 16px; }
+
+/* 판 위에서 누를 자리 — 보이는 점보다 넓은 과녁 */
+.spotHit { fill: transparent; cursor: pointer; }
+.spotDot { pointer-events: none; }
+
+/* ==================== 좁은 화면에서 판을 크게 ==================== */
+@media (max-width: 760px) {
+  /* 내 차례가 아니면 조작판을 접어 판에 자리를 준다 */
+  #game:not(.mine) .buildRow,
+  #game:not(.mine) .panelFoot,
+  #game:not(.mine) .acts { display: none; }
+  #game:not(.mine) .panel { padding: 8px 12px; }
+  #game:not(.mine) .handCards { transform: scale(0.82); transform-origin: center bottom; }
+  /* 판 위에 놓는 중에는 손패까지 접는다 */
+  #game.placing .hand { display: none; }
+  #game.placing .buildRow,
+  #game.placing .panelFoot { display: none; }
+  #game.placing .boardBox { box-shadow: inset 0 0 0 2px rgba(255,220,160,0.4), 0 0 0 2px var(--gold), 0 8px 22px rgba(0,0,0,0.3); }
+  .phStep { font-size: 10.5px; padding: 2px 8px 2px 3px; }
+  .phStep i { width: 15px; height: 15px; font-size: 9.5px; }
+}
+
+/* ==================== 좁은 화면 — 위아래를 줄여 판을 키운다 ==================== */
+@media (max-width: 560px) {
+  /* 이름표는 한 줄로, 옆으로 밀어 본다 */
+  .players {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .players::-webkit-scrollbar { display: none; }
+  .pl { flex: 0 0 auto; padding: 4px 7px; font-size: 11px; gap: 4px; }
+  .pl .left { display: none; }            /* 남은 말 수는 도움말에서 */
+  .pl .nm { max-width: 5.2em; }
+  .think { display: none; }                /* 누가 뭘 하는지는 위 안내줄이 말해 준다 */
+  .top { padding: 6px 8px 0; }
+  /* 순서를 정하는 동안은 짓기 칸·손패가 필요 없다 */
+  #game.ordering .buildRow,
+  #game.ordering .panelFoot,
+  #game.ordering .hand { display: none; }
+  /* 판을 우선으로 */
+  #board { max-height: none; }
+  .boardBox { padding: 2px; }
+  .log { max-height: 56px; }
+  .panelMsg { font-size: 13.5px; }
+}
+@media (max-width: 560px) {
+  .topRight { flex: 0 0 auto; }
+  #btnHelp { white-space: nowrap; padding: 5px 8px; font-size: 12px; align-self: flex-start; }
+}

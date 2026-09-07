@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&family=Song+Myung&display=swap">
-<link rel="stylesheet" href="style.css?v=a9bcaee6">
+<link rel="stylesheet" href="style.css?v=41984981">
 </head>
 <body>
 
@@ -159,6 +159,12 @@
     </div>
   </header>
 
+  <div id="phaseBar" class="phaseBar hidden">
+    <span class="phStep" data-ph="order"><i>1</i>순서 정하기</span>
+    <span class="phStep" data-ph="setup"><i>2</i>마을·도로 놓기</span>
+    <span class="phStep" data-ph="play"><i>3</i>본게임</span>
+  </div>
+
   <div id="nowBar" class="nowBar">
     <span class="nowDot" id="nowDot"></span>
     <span class="nowText" id="nowText">판을 준비하는 중…</span>
@@ -211,6 +217,17 @@
         </div>
       </div>
       <span class="crHint">아무 곳이나 눌러 닫기</span>
+    </div>
+  </div>
+
+  <!-- 다음 단계로 넘어가기 전에 한 번 멈춰 세운다 -->
+  <div id="gate" class="gate hidden">
+    <div class="gateInner">
+      <div class="gateIcon" id="gateIcon"></div>
+      <div class="gateTitle" id="gateTitle"></div>
+      <div class="gateSub" id="gateSub"></div>
+      <div class="gateList" id="gateList"></div>
+      <button class="primary gateBtn" id="gateBtn">계속하기</button>
     </div>
   </div>
 
@@ -495,6 +512,6 @@
 <script src="ck.js?v=f8f09cff"></script>
 <script src="ck-ai.js?v=8d98a624"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=ba26483b"></script>
+<script src="app.js?v=2418b776"></script>
 </body>
 </html>
