@@ -37,6 +37,16 @@
     ['title', 'home', 'lobby', 'game'].forEach(function (id) {
       $(id).classList.toggle('hidden', id !== which);
     });
+    if (which === 'title') replayTitleIntro();
+  }
+
+  // 타이틀로 돌아올 때마다 등장 연출을 처음부터 다시 돌린다
+  function replayTitleIntro() {
+    var t = $('title');
+    if (!t) return;
+    t.classList.remove('curtain');
+    void t.offsetWidth;
+    t.classList.add('curtain');
   }
   var toastTimer = null;
   function toast(msg) {

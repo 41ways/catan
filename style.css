@@ -90,7 +90,7 @@ input, select {
   animation: seaSpin 40s linear infinite;
 }
 @keyframes seaSpin { to { background-position: 0 0, 40px 40px, 0 0; } }
-.isle {
+.tisle {
   position: absolute; left: 50%; top: 2%; width: 88%; transform: translateX(-50%);
   filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
   animation: isleFloat 5s ease-in-out infinite;
@@ -832,7 +832,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden;
 }
 .sweepFig {
-  position: absolute; top: 38%; left: -14vw; font-size: 92px; line-height: 1;
+  position: absolute; top: 38%; left: -14vw; width: 98px; height: auto;
   filter: drop-shadow(0 8px 10px rgba(0,0,0,0.45));
   animation: sweepRun 1.5s cubic-bezier(0.3, 0.05, 0.6, 1) forwards;
 }
@@ -1042,7 +1042,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 
 @media (prefers-reduced-motion: reduce) {
-  .sway, .sheep, .wave, .boat, .isle, .tboat, .seaDisc, .bigDie.land { animation: none !important; }
+  .sway, .sheep, .wave, .boat, .tisle, .tboat, .seaDisc, .bigDie.land { animation: none !important; }
 }
 
 
@@ -1154,3 +1154,73 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 #title, .twrap, .hero { max-width: 100%; }
 #title { overflow: hidden; }
+
+
+/* ==================== 타이틀 등장 — 판이 깔리듯 하나씩 ==================== */
+/* #title.curtain 을 뗐다 붙이면 처음부터 다시 돈다 (app.js show) */
+
+@keyframes tFadeUp   { from { opacity: 0; translate: 0 14px; } }
+@keyframes tFadeIn   { from { opacity: 0; } }
+@keyframes tDiscIn   { 0% { opacity: 0; transform: scale(0.5); } 70% { opacity: 1; transform: scale(1.05); } 100% { opacity: 1; transform: none; } }
+@keyframes tTileIn   { 0% { opacity: 0; transform: scale(0.45) translateY(-16px); } 70% { opacity: 1; transform: scale(1.07); } 100% { opacity: 1; transform: none; } }
+@keyframes tPopIn    { 0% { opacity: 0; transform: scale(0.2); } 70% { opacity: 1; transform: scale(1.15); } 100% { opacity: 1; transform: none; } }
+@keyframes tSailL    { from { opacity: 0; transform: translateX(-26px); } }
+@keyframes tSailR    { from { opacity: 0; transform: translateX(26px); } }
+@keyframes tRollIn   { 0% { opacity: 0; transform: translateX(54px) rotate(150deg); } 70% { opacity: 1; transform: translateX(-4px) rotate(-8deg); } 100% { opacity: 1; transform: none; } }
+@keyframes tStamp    { 0% { opacity: 0; transform: scale(1.4); } 55% { opacity: 1; transform: scale(0.96); } 100% { opacity: 1; transform: none; } }
+@keyframes tSpread   { from { opacity: 0; letter-spacing: 0.08em; } }
+@keyframes tCardIn   { from { opacity: 0; translate: 0 26px; } }
+
+#title.curtain .kicker,
+#title.curtain .tswitch      { animation: tFadeIn 0.5s ease 0.02s backwards; }
+#title.curtain .seaDisc      { animation: tDiscIn 0.5s cubic-bezier(0.2,1.1,0.4,1) 0.1s backwards, seaSpin 40s linear infinite; }
+/* 섬 육각형 일곱 장이 시계 방향으로 톡톡 */
+#title.curtain .tisle g:first-of-type > polygon {
+  transform-box: fill-box; transform-origin: center;
+  animation: tTileIn 0.4s cubic-bezier(0.2,1.2,0.4,1) var(--d) backwards;
+}
+#title.curtain .tisle g:first-of-type > polygon:nth-child(1) { --d: 0.30s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(2) { --d: 0.36s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(3) { --d: 0.42s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(4) { --d: 0.48s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(5) { --d: 0.54s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(6) { --d: 0.60s; }
+#title.curtain .tisle g:first-of-type > polygon:nth-child(7) { --d: 0.66s; }
+/* 숫자 칩과 지형 그림이 뒤이어 */
+#title.curtain .tisle > circle,
+#title.curtain .tisle > text:not(.tboat) {
+  transform-box: fill-box; transform-origin: center;
+  animation: tPopIn 0.32s cubic-bezier(0.2,1.3,0.4,1) 0.7s backwards;
+}
+/* 도로와 마을 */
+#title.curtain .tisle > line,
+#title.curtain .tisle > g:nth-of-type(2) { animation: tFadeIn 0.34s ease 0.86s backwards; }
+/* 배는 양옆에서 미끄러져 들어온다 */
+#title.curtain .tboat    { animation: tSailL 0.6s ease 0.44s backwards, bob 2.6s ease-in-out 1.04s infinite; }
+#title.curtain .tboat.b2 { animation: tSailR 0.6s ease 0.5s backwards, bob 2.6s ease-in-out -1.3s infinite; }
+/* 주사위가 굴러 들어온다 */
+#title.curtain .tdice    { animation: tRollIn 0.55s cubic-bezier(0.25,1.1,0.35,1) 0.84s backwards; }
+/* 로고는 도장처럼 찍힌다 */
+#title.curtain .logo     { animation: tStamp 0.48s cubic-bezier(0.2,1.3,0.4,1) 0.96s backwards; }
+#title.curtain .sublogo  { animation: tSpread 0.5s ease 1.16s backwards; }
+/* 자원 카드가 한 장씩 펼쳐진다 */
+#title.curtain .tfan .resCard { animation: tCardIn 0.42s cubic-bezier(0.2,0.9,0.3,1.2) var(--cd) backwards; }
+#title.curtain .tfan .resCard:nth-child(1) { --cd: 1.22s; }
+#title.curtain .tfan .resCard:nth-child(2) { --cd: 1.28s; }
+#title.curtain .tfan .resCard:nth-child(3) { --cd: 1.34s; }
+#title.curtain .tfan .resCard:nth-child(4) { --cd: 1.40s; }
+#title.curtain .tfan .resCard:nth-child(5) { --cd: 1.46s; }
+#title.curtain #btnPlay  { animation: tFadeUp 0.4s ease 1.5s backwards; }
+#title.curtain #btnRules { animation: tFadeUp 0.4s ease 1.58s backwards; }
+#title.curtain .tfoot    { animation: tFadeUp 0.4s ease 1.66s backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  #title.curtain .kicker, #title.curtain .tswitch, #title.curtain .seaDisc,
+  #title.curtain .tisle g:first-of-type > polygon, #title.curtain .tisle > circle,
+  #title.curtain .tisle > text, #title.curtain .tisle > line, #title.curtain .tisle > g,
+  #title.curtain .tboat, #title.curtain .tboat.b2, #title.curtain .tdice,
+  #title.curtain .logo, #title.curtain .sublogo, #title.curtain .tfan .resCard,
+  #title.curtain #btnPlay, #title.curtain #btnRules, #title.curtain .tfoot {
+    animation: none !important;
+  }
+}

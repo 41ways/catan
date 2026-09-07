@@ -12,12 +12,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&family=Song+Myung&display=swap">
-<link rel="stylesheet" href="style.css?v=da6fc7d0">
+<link rel="stylesheet" href="style.css?v=4d63c15f">
 </head>
 <body>
 
 <!-- 타이틀 -->
-<section id="title" class="screen">
+<section id="title" class="screen curtain">
   <label class="tswitch" title="테마 바꾸기">
     <input type="checkbox" id="themeToggle">
     <span class="track"><span class="knob"></span></span>
@@ -29,7 +29,7 @@
     <!-- 바다 위에 떠 있는 섬 -->
     <div class="hero">
       <div class="seaDisc"></div>
-      <svg class="isle" viewBox="0 0 260 158" aria-hidden="true">
+      <svg class="tisle" viewBox="0 0 260 158" aria-hidden="true">
         <g stroke="#0b0e14" stroke-width="1.5">
           <polygon points="107.5,10 130,23 130,49 107.5,62 85,49 85,23" fill="#7a8494"/>
           <polygon points="152.5,10 175,23 175,49 152.5,62 130,49 130,23" fill="#79a352"/>
@@ -166,7 +166,19 @@
   <!-- 7 — 도둑이 화면을 가로질러 달려간다 -->
   <div id="robberSweep" class="robberSweep hidden">
     <div class="sweepText" id="sweepText">도둑이야!</div>
-    <div class="sweepFig" id="sweepFig">🕵️</div>
+    <svg class="sweepFig" id="sweepFig" viewBox="0 0 78 80" aria-hidden="true">
+      <!-- 어깨에 둘러멘 자루 -->
+      <path d="M50 22c12-3 22 5 23 16 0 10-8 17-18 17-11 0-18-9-16-19 1-7 5-12 11-14z" fill="#9c7040" stroke="#2b2419" stroke-width="2.4"/>
+      <path d="M49 23l-5-10 9 4 5-7 4 10z" fill="#c9a06a" stroke="#2b2419" stroke-width="2.4" stroke-linejoin="round"/>
+      <!-- 달리는 다리 -->
+      <path d="M23 53l-12 20" stroke="#14171f" stroke-width="9" stroke-linecap="round" fill="none"/>
+      <path d="M32 53l10 11 8 5" stroke="#14171f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <!-- 두건 달린 망토 -->
+      <path d="M28 5c9 0 16 8 16 19 0 9 3 15 6 23-9 6-29 7-39 1 3-9 5-15 5-24C16 13 21 5 28 5z" fill="#232a36" stroke="#0b0e14" stroke-width="2.2"/>
+      <path d="M18 19c1-8 5-13 10-13s9 5 10 13c-6 5-14 5-20 0z" fill="#0b0e14"/>
+      <circle cx="24" cy="17" r="2" fill="#f2d38a"/>
+      <circle cx="31.5" cy="16.4" r="2" fill="#f2d38a"/>
+    </svg>
   </div>
   <div id="confetti" class="confetti hidden"></div>
 
@@ -411,6 +423,6 @@
 <script src="ck.js?v=dbc161d9"></script>
 <script src="ck-ai.js?v=8d98a624"></script>
 <script src="net.js?v=46de61a8"></script>
-<script src="app.js?v=3ddbb601"></script>
+<script src="app.js?v=b06595b3"></script>
 </body>
 </html>
