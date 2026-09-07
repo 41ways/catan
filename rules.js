@@ -574,7 +574,7 @@
       if (!names.length) return;
       s.blocked = { hex: s.robber, res: rh.res, players: names, turn: s.turnCount };
       say(s, null, '도둑이 ' + RES_NAME[rh.res] + ' 타일(' + sum + ')을 막고 있어 ' +
-        names.map(function (pid) { return nameOf(s, pid); }).join(', ') + '은(는) 못 받았습니다.');
+        EUN(names.map(function (pid) { return nameOf(s, pid); }).join(', ')) + ' 못 받았습니다.');
     })();
     s.board.hexes.forEach(function (h, i) {
       if (h.number !== sum || i === s.robber || !h.res) return;

@@ -535,7 +535,7 @@
                   desc: '숫자 칩 두 개의 자리를 맞바꿉니다. 2 · 12 · 6 · 8 은 손댈 수 없습니다.' },
     engineer:   { name: '기술자', icon: '\uD83E\uDDF1', kind: '과학 진보카드', cls: 'k-sci',
                   desc: '내 도시에 성벽 하나를 공짜로 쌓습니다. 손패 한도가 두 장 늘어납니다.' },
-    medicine:   { name: '의료 기술', icon: '\u2695\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
+    medicine:   { name: '의료기술', icon: '\u2695\uFE0F', kind: '과학 진보카드', cls: 'k-sci',
                   desc: '철 두 장과 밀 한 장만으로 마을을 도시로 올립니다.' },
     smith:      { name: '제련술', icon: '\uD83D\uDD28', kind: '과학 진보카드', cls: 'k-sci',
                   desc: '내 기사 둘을 공짜로 한 등급씩 승급시킵니다.' },

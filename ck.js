@@ -58,7 +58,7 @@
     science: [
       ['alchemist', '연금술사', 2], ['crane', '기중기', 2], ['mining', '광산', 2],
       ['irrigation', '관개 시설', 2], ['printer', '인쇄소', 1], ['inventor', '발명가', 2],
-      ['engineer', '기술자', 1], ['medicine', '의료 기술', 2], ['smith', '제련술', 2],
+      ['engineer', '기술자', 1], ['medicine', '의료기술', 2], ['smith', '제련술', 2],
       ['roadbuild', '도로 건설', 2]
     ],
     politics: [
@@ -523,7 +523,7 @@
         // 손에 넉 장을 이미 들고 있으면 받자마자 더미 맨 아래로 보낸다
         s.progress[track].unshift(card);
         say(s, p.id, '진보카드가 넉 장이라 ' + EUL(CARD_NAME[card]) + ' 받지 못했습니다.');
-        say(s, null, p.name + '은(는) 진보카드가 넉 장이라 받지 못했습니다.');
+        say(s, null, EUN(p.name) + ' 진보카드가 넉 장이라 받지 못했습니다.');
       } else {
         p.cards.push({ type: card, track: track });
         got.push(p.name);
@@ -552,7 +552,7 @@
       if (!names.length) return;
       s.blocked = { hex: s.robber, res: rh.res, players: names, turn: s.turnCount };
       say(s, null, '도둑이 ' + NAME[rh.res] + ' 타일(' + sum + ')을 막고 있어 ' +
-        names.map(function (pid) { return playerOf(s, pid).name; }).join(', ') + '은(는) 못 받았습니다.');
+        EUN(names.map(function (pid) { return playerOf(s, pid).name; }).join(', ')) + ' 못 받았습니다.');
     })();
     s.board.hexes.forEach(function (h, i) {
       if (h.number !== sum || i === s.robber || !h.res) return;
