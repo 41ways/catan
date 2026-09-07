@@ -1223,3 +1223,67 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
     animation: none !important;
   }
 }
+
+
+/* ==================== 뽑은 카드 펼쳐 보이기 ==================== */
+.cardReveal {
+  position: fixed; inset: 0; z-index: 78; display: flex; align-items: center; justify-content: center;
+  background: rgba(24, 16, 6, 0.46); backdrop-filter: blur(1.5px); cursor: pointer;
+  animation: tFadeIn 0.22s ease;
+}
+.crCard {
+  width: min(268px, 74vw); padding: 20px 20px 16px; border-radius: 16px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  background: linear-gradient(170deg, var(--paper), var(--paper2));
+  border: 2px solid var(--paperLine);
+  box-shadow: 0 22px 44px rgba(0,0,0,0.5), inset 0 0 0 5px rgba(255,255,255,0.35);
+  animation: crFlip 0.6s cubic-bezier(0.2, 1.05, 0.35, 1) backwards;
+}
+@keyframes crFlip {
+  0%   { opacity: 0; transform: perspective(700px) rotateY(-96deg) scale(0.8); }
+  60%  { opacity: 1; transform: perspective(700px) rotateY(10deg) scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+/* 어느 더미에서 나온 카드인지 — 띠 색으로 */
+.crCard::before {
+  content: ''; position: absolute; inset: -2px -2px auto; height: 7px;
+  border-radius: 16px 16px 0 0; background: var(--crBand, #8a6a3c);
+}
+.crCard { position: relative; overflow: hidden; }
+.crCard.k-dev { --crBand: #6b5f49; }
+.crCard.k-sci { --crBand: #4f8c46; }
+.crCard.k-pol { --crBand: #4a72a8; }
+.crCard.k-tra { --crBand: #d9a441; }
+.crKind {
+  font-family: var(--serif); font-size: 12px; letter-spacing: 0.14em; color: var(--dim);
+  border-bottom: 1px solid var(--paperLine); padding: 2px 10px 6px;
+}
+.crFace { font-size: 62px; line-height: 1.1; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25)); }
+.crName { font-family: var(--display); font-weight: 700; font-size: 26px; color: var(--ink); letter-spacing: 0.03em; }
+.crDesc { font-size: 13.5px; line-height: 1.65; color: var(--dim); }
+.crHint { margin-top: 4px; font-size: 11px; color: var(--faint); letter-spacing: 0.04em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cardReveal, .crCard { animation: none !important; }
+}
+
+/* 그림이 있는 카드는 그림 한 장으로 크게 */
+.crCard.art { width: min(340px, 84vw); padding: 0; border: none; background: none; box-shadow: none; }
+.crCard.art::before { display: none; }
+.crImg {
+  display: block; width: 100%; height: auto; border-radius: 14px;
+  box-shadow: 0 24px 46px rgba(0,0,0,0.55);
+}
+.crCard.art .crHint { color: rgba(255,255,255,0.75); text-shadow: 0 1px 3px rgba(0,0,0,0.6); padding: 8px 0 0; }
+/* 최장 교역로 · 최강 기사단 — 실제 카드를 띄운다 */
+.bnCard {
+  display: block; width: min(340px, 76vw); height: auto; margin: 8px auto 0; border-radius: 10px;
+  box-shadow: 0 12px 26px rgba(0,0,0,0.45);
+}
+/* 손패 칩에 붙는 카드 그림 조각 */
+.chipArt {
+  width: 20px; height: 20px; border-radius: 5px; margin-right: 6px; vertical-align: -5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+/* 도움말의 발전 카드 목록 — 그림을 함께 */
+.gArt { width: 34px; height: 34px; border-radius: 7px; margin-right: 8px; vertical-align: -11px; box-shadow: 0 1px 4px rgba(0,0,0,0.28); }
