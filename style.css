@@ -143,6 +143,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   opacity: 1; transition: opacity 0.28s;
 }
 .diceOverlay.out { opacity: 0; }
+.diceWho { font-size: 15px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px #000; min-height: 20px; }
 .bigDice { display: flex; gap: 18px; }
 .bigDie {
   width: 74px; height: 74px; border-radius: 15px; background: #f2ead6; padding: 10px;

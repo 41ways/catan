@@ -116,7 +116,8 @@
         var gains = (v.lastGain && v.lastGain.length) ? v.lastGain : null;
         var isSeven = v.dice[0] + v.dice[1] === 7;
         // 주사위가 화면에서 사라진 뒤에 해당 칸이 점등하고, 그 다음 카드가 온다
-        showDiceRoll(v.dice, function () {
+        var roller = v.players[v.turn];
+        showDiceRoll(v.dice, roller, v, function () {
           if (isSeven) litRobber();
           else if (gains) flyGains(gains);
           else showBlocked(v);
@@ -618,10 +619,15 @@
     }
   }
   var diceSpin = null, diceHide = null;
-  function showDiceRoll(d, done) {
+  function showDiceRoll(d, roller, v, done) {
     var ov = $('diceOverlay');
     ov.classList.remove('hidden'); ov.classList.remove('out');
     $('diceSum').textContent = ''; $('diceNote').textContent = '';
+    var who = $('diceWho');
+    if (who) {
+      who.textContent = roller ? (roller.id === (v && v.me) ? '내가 굴립니다' : roller.name + '이(가) 굴립니다') : '';
+      who.style.color = roller ? (PCOLOR[roller.color] || '') : '';
+    }
     var b1 = $('bd1'), b2 = $('bd2');
     b1.classList.add('rolling'); b2.classList.add('rolling');
     clearInterval(diceSpin); clearTimeout(diceHide);
@@ -635,7 +641,25 @@
         dieFace(b1, d[0]); dieFace(b2, d[1]);
         var sum = d[0] + d[1];
         $('diceSum').textContent = d[0] + ' + ' + d[1] + ' = ' + sum;
-        $('diceNote').textContent = sum === 7 ? '도둑이 움직입니다' : sum + ' 타일에서 자원이 나옵니다';
+        var note;
+        if (sum === 7) {
+          note = '\uD83D\uDD75\uFE0F 도둑이 움직입니다 — 8장 이상은 절반을 버립니다';
+        } else {
+          var names = [];
+          if (v && v.lastGain) {
+            var seen = {};
+            v.lastGain.forEach(function (gg) {
+              if (seen[gg.p]) return;
+              seen[gg.p] = 1;
+              var q = playerIn(v, gg.p);
+              if (q) names.push(q.name);
+            });
+          }
+          note = names.length
+            ? sum + ' 타일에서 자원 — ' + names.join(', ') + '이(가) 받습니다'
+            : sum + ' 타일 — 받는 사람이 없습니다';
+        }
+        $('diceNote').textContent = note;
         // 눈을 충분히 읽을 시간을 준 뒤 사라진다
         diceHide = setTimeout(function () {
           ov.classList.add('out');
