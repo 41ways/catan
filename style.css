@@ -456,6 +456,17 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .nowText { flex: 1; min-width: 0; }
 .nowText b { color: var(--gold); }
 .nowBar.mine { border-color: var(--gold); background: var(--goldSoft, var(--panel2)); }
+/* 내가 지금 해야 하는 일 — 놓치지 않게 */
+.nowBar.urgent {
+  border-color: #c0342b; color: #b3402f;
+  animation: urgentPulse 1.1s ease-in-out infinite;
+}
+.nowBar.urgent .nowDot { background: #c0342b !important; }
+@keyframes urgentPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192,52,43,0.0); }
+  50%      { box-shadow: 0 0 0 3px rgba(192,52,43,0.18); }
+}
+.bnSub { white-space: pre-line; }
 .nowBar.step .nowText { animation: nowIn 0.3s ease-out; }
 @keyframes nowIn {
   from { opacity: 0; transform: translateY(4px); }

@@ -245,37 +245,74 @@
   /* ---------------- 중계 — 로그를 한 줄씩 풀어 보여준다 ---------------- */
 
   // 로그 한 줄이 무슨 일인지 알아본다 (표시 전용)
+  // big:true 는 화면 가운데 큰 알림까지 띄운다
   function readLine(text) {
     var t = text;
     function has() {
       for (var i = 0; i < arguments.length; i++) if (t.indexOf(arguments[i]) >= 0) return true;
       return false;
     }
-    if (has('승리')) return { icon: '\uD83C\uDFC6', hold: 1800, big: true };
-    if (has('야만족 상륙', '\u2694')) return { icon: '\u2694\uFE0F', hold: 1600, big: true };
-    if (has('최장 교역로')) return { icon: '\uD83D\uDEE3\uFE0F', hold: 1400, big: true };
-    if (has('최강 기사단')) return { icon: '\uD83D\uDEE1\uFE0F', hold: 1400, big: true };
-    if (has('수도 건설', '수도를 빼앗')) return { icon: '\uD83C\uDFF0', hold: 1400, big: true };
-    if (has('카탄의 수호자', '수호자')) return { icon: '\uD83C\uDF96\uFE0F', hold: 1500, big: true };
-    if (has('약탈')) return { icon: '\uD83D\uDD25', hold: 1300, big: true };
+    // ── 판을 뒤흔드는 일 ──────────────────────────────
+    if (has('승리')) return { icon: '\uD83C\uDFC6', hold: 2000, big: true };
+    if (has('야만족 상륙')) return { icon: '\u2694\uFE0F', hold: 1700, big: true };
+    if (has('약탈이 없습니다')) return { icon: '\uD83D\uDE0C', hold: 1100 };
+    if (has('약탈')) return { icon: '\uD83D\uDD25', hold: 1500, big: true };
+    if (has('카탄의 수호자')) return { icon: '\uD83C\uDF96\uFE0F', hold: 1500, big: true };
+    if (has('최장 교역로가 사라', '최장 교역로가 동점')) return { icon: '\uD83D\uDEE3\uFE0F', hold: 1300, big: true };
+    if (has('최장 교역로')) return { icon: '\uD83D\uDEE3\uFE0F', hold: 1500, big: true };
+    if (has('최강 기사단')) return { icon: '\uD83D\uDEE1\uFE0F', hold: 1500, big: true };
+    if (has('수도 건설', '수도를 빼앗')) return { icon: '\uD83C\uDFF0', hold: 1500, big: true };
+    if (has('절반 버리기')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1600, big: true };
+    if (has('독점')) return { icon: '\uD83E\uDDF2', hold: 1500, big: true };
+
+    // ── 주사위와 생산 ────────────────────────────────
     if (has('주사위')) return { icon: '\uD83C\uDFB2', hold: 700 };
-    if (has('거래 성사')) return { icon: '\uD83E\uDD1D', hold: 1300 };
-    if (has('거래 제안')) return { icon: '\uD83D\uDCAC', hold: 1000 };
-    if (has('은행과')) return { icon: '\uD83C\uDFE6', hold: 900 };
-    if (has('도둑')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1000 };
-    if (has('버림', '버리기')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1000 };
-    if (has('도시')) return { icon: '\uD83C\uDFDB\uFE0F', hold: 1100 };
-    if (has('마을')) return { icon: '\uD83C\uDFE0', hold: 1000 };
+    if (has('도둑이', '막고 있어')) return { icon: '\uD83D\uDEAB', hold: 1400, big: true };
+    if (has('모자라')) return { icon: '\u26A0\uFE0F', hold: 1200 };
+    if (has('아무도 못 받')) return { icon: '\uD83D\uDCA8', hold: 900 };
+    if (has('\u2190', '첫 자원', '거둬', '받았습니다', '캤습니다', '거뒀습니다 —')) return { icon: '\uD83D\uDCE6', hold: 850 };
+
+    // ── 도둑 ────────────────────────────────────────
+    if (has('도둑을 옮깁니다', '(으)로 옮김', '도둑을 쫓')) return { icon: '\uD83D\uDD75\uFE0F', hold: 1200 };
+    if (has('가져갔습니다')) return { icon: '\uD83E\uDD1A', hold: 1300 };
+    if (has('가져온 것', '빼앗긴 것')) return { icon: '\uD83D\uDC40', hold: 1300 };
+    if (has('도둑은 움직이지', '도둑은 그대로')) return { icon: '\uD83D\uDE34', hold: 1200 };
+    if (has('버림 —')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1100 };
+
+    // ── 짓기 ────────────────────────────────────────
+    if (has('성벽')) return { icon: '\uD83E\uDDF1', hold: 1200 };
+    if (has('도시 — 2점', '도시\n', '도시')) return { icon: '\uD83C\uDFDB\uFE0F', hold: 1200 };
+    if (has('마을')) return { icon: '\uD83C\uDFE0', hold: 1100 };
+    if (has('항구 확보')) return { icon: '\u2693', hold: 1300 };
     if (has('도로')) return { icon: '\uD83D\uDEE4\uFE0F', hold: 850 };
-    if (has('기사')) return { icon: '\u2694\uFE0F', hold: 1000 };
-    if (has('성벽')) return { icon: '\uD83E\uDDF1', hold: 1000 };
-    if (has('진보카드', '발전 카드')) return { icon: '\uD83C\uDCCF', hold: 1000 };
-    if (has('단계 —')) return { icon: '\uD83D\uDCDA', hold: 1100 };
-    if (has('\u2190', '첫 자원', '거둬', '받았', '얻', '캤')) return { icon: '\uD83D\uDCE6', hold: 850 };
-    if (has('항구')) return { icon: '\u2693', hold: 1000 };
-    if (has('못 받', '모자라')) return { icon: '\u26A0\uFE0F', hold: 1100 };
+
+    // ── 기사 (확장) ─────────────────────────────────
+    if (has('기사를 놓', '기사를 활동', '승급', '밀어냈', '추방', '기사가 이동')) {
+      return { icon: '\u2694\uFE0F', hold: 1200 };
+    }
+    if (has('야만족 함대')) return { icon: '\u26F5', hold: 1100 };
+
+    // ── 카드 ────────────────────────────────────────
+    if (has('자원 발견')) return { icon: '\uD83C\uDF81', hold: 1200 };
+    if (has('도로 건설 —')) return { icon: '\uD83D\uDEA7', hold: 1200 };
+    if (has('성문 —', '진보카드')) return { icon: '\uD83D\uDCDC', hold: 1200 };
+    if (has('발전 카드', '뽑은 카드')) return { icon: '\uD83C\uDCCF', hold: 1000 };
+    if (has('단계 —')) return { icon: '\uD83D\uDCDA', hold: 1300 };
+
+    // ── 거래 ────────────────────────────────────────
+    if (has('거래 성사')) return { icon: '\uD83E\uDD1D', hold: 1400 };
+    if (has('거래 제안')) return { icon: '\uD83D\uDCAC', hold: 1200 };
+    if (has('받겠다고')) return { icon: '\uD83D\uDC4D', hold: 900 };
+    if (has('거절')) return { icon: '\uD83D\uDC4E', hold: 900 };
+    if (has('제안을 거뒀')) return { icon: '\u21A9\uFE0F', hold: 900 };
+    if (has('은행과')) return { icon: '\uD83C\uDFE6', hold: 1000 };
+
+    // ── 진행 ────────────────────────────────────────
+    if (has('준비 끝')) return { icon: '\uD83C\uDFC1', hold: 1200 };
+    if (has('나감')) return { icon: '\uD83D\uDEAA', hold: 1200 };
+    if (has('놓을 자리가 없어', '넘어갑니다')) return { icon: '\u23ED\uFE0F', hold: 1000 };
     if (has('차례')) return { icon: '\u23ED\uFE0F', hold: 700 };
-    return { icon: '\u2022', hold: 800 };
+    return { icon: '\u2022', hold: 900 };
   }
 
   // 그 줄이 누구 이야기인지 — 이름으로 찾아 색을 입힌다
@@ -333,6 +370,11 @@
     dot.style.background = owner ? (PCOLOR[owner.color] || 'var(--faint)') : 'var(--faint)';
     txt.textContent = icon + '  ' + text;
     bar.classList.toggle('mine', !!(owner && App.view && owner.id === App.view.me));
+    var vv = App.view;
+    if (vv) {
+      bar.classList.toggle('urgent', !!vv.mustDiscard[vv.me] ||
+        (!!vv.trade && vv.trade.from !== vv.me && !vv.trade.replies[vv.me]));
+    }
   }
 
   // 지금 누가 무엇을 할 차례인지 (중계할 게 없을 때)
@@ -395,6 +437,11 @@
     dot.style.background = actor ? (PCOLOR[actor.color] || 'var(--faint)') : 'var(--faint)';
     txt.textContent = msg;
     bar.classList.toggle('mine', mine && !v.trade);
+    // 내가 지금 꼭 해야 하는 일이면 눈에 띄게 재촉한다
+    var urgent = !!v.mustDiscard[v.me] ||
+      (v.trade && v.trade.from !== v.me && !v.trade.replies[v.me]) ||
+      (mine && v.phase === 'robber');
+    bar.classList.toggle('urgent', !!urgent);
     // 남을 기다리는 중이면 점 세 개
     var wait = bar.querySelector('.nowWait');
     var waitingForOther = !mine || v.phase === 'discard' || !!v.trade;
@@ -430,6 +477,17 @@
     } else if (text.indexOf('야만족 상륙') >= 0) {
       title = '야만족 상륙!';
       sub = text.replace(/^.*상륙!\s*/, '');
+    } else if (text.indexOf('절반 버리기') >= 0) {
+      var mineNeed = App.view && App.view.mustDiscard ? App.view.mustDiscard[App.view.me] : 0;
+      title = mineNeed ? ('7! 내 카드 ' + mineNeed + '장을 버립니다') : '7! 카드를 버립니다';
+      sub = text.replace('7 — 절반 버리기: ', '') || '손패가 8장 이상인 사람은 절반을 버립니다';
+      $('bnIcon').textContent = '\uD83D\uDDD1\uFE0F';
+    } else if (text.indexOf('막고 있어') >= 0) {
+      title = '도둑이 막았습니다';
+      sub = text.replace(/^도둑이 /, '').replace('막고 있어 ', '막고 있어\n');
+    } else if (text.indexOf('독점') >= 0) {
+      title = (item.owner ? item.owner.name : '') + ' 독점!';
+      sub = text.replace(/^.*독점 — /, '');
     } else if (text.indexOf('수호자') >= 0) {
       award = true;
       title = (item.owner ? item.owner.name : '') + ' 카탄의 수호자!';
@@ -2130,6 +2188,7 @@
   $('name').value = localStorage.getItem('catan.name') || '';
   $('name').addEventListener('change', function () { localStorage.setItem('catan.name', myName()); });
 
+  App.readLine = readLine;
   App.act = act; App.doAction = doAction; App.pushViews = pushViews; App.render = render;
   window.__ct = App;
 })();
