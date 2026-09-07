@@ -68,6 +68,18 @@
     if (v.phase === 'setup') return v.setup.who === v.me;
     return v.players[v.turn] && v.players[v.turn].id === v.me;
   }
+  var INTRO_TILES = 19 * 70 + 260;          // 타일이 다 깔리는 데 걸리는 시간
+  var INTRO_ALL = INTRO_TILES + 19 * 55 + 420;
+  // 판이 깔리는 연출을 시작한다 (한 판에 한 번)
+  function startIntro() {
+    App.intro = true;
+    clearTimeout(App.introTimer);
+    App.introTimer = setTimeout(function () {
+      App.intro = false;
+      render();
+    }, INTRO_ALL);
+  }
+
   function px(X) { return X * S * 0.8660254; }
   function py(Y) { return Y * S * 0.5; }
   // #rrggbb 를 밝기 f 배로
@@ -89,7 +101,9 @@
       return { id: s.id, name: s.name, bot: s.bot };
     }), Math.floor(Math.random() * 1e9));
     App.build = null; App.discardSel = [];
+    App.lastLogId = undefined; App.feed = []; App.feedBusy = false;
     show('game');
+    startIntro();
     pushViews();
   }
 
@@ -146,7 +160,7 @@
   function doAction(pid, action, args) {
     var s = App.state;
     if (!s) return;
-    var allowed = ['placeSettlement', 'placeRoad', 'roll', 'discard', 'moveRobber',
+    var allowed = ['rollForOrder', 'placeSettlement', 'placeRoad', 'roll', 'discard', 'moveRobber',
       'build', 'buyDev', 'playDev', 'bankTrade', 'offerTrade', 'replyTrade',
       'acceptTrade', 'cancelTrade', 'endTurn',
       // 도시와 기사
@@ -185,7 +199,8 @@
     if (s.trade) return;
     var need = eng.needsAction(s).filter(function (pid) { return eng.playerOf(s, pid).bot; });
     if (!need.length) return;
-    var wait = s.phase === 'setup' ? 620 : s.phase === 'roll' ? 700 : 620;
+    var wait = s.phase === 'order' ? 900 : s.phase === 'setup' ? 620 : s.phase === 'roll' ? 700 : 620;
+    if (App.intro) wait += 700;                       // 판이 깔리는 동안은 천천히
     // 아직 중계할 줄이 남아 있으면 그만큼 늦춘다 (한 수씩 눈에 들어오게)
     wait += Math.min(1800, App.feed.length * 380 + (App.feedBusy ? 260 : 0));
     App.botTimer = setTimeout(function () { botStep(need[0]); }, wait);
@@ -206,7 +221,9 @@
     var v = eng.viewFor(s, pid), r = null;
     var cards = App.ext ? CK.ALL : RES;
 
-    if (s.phase === 'setup') {
+    if (s.phase === 'order') {
+      r = eng.rollForOrder(s, pid);
+    } else if (s.phase === 'setup') {
       if (s.setupSub === 'settlement') {
         r = eng.placeSettlement(s, pid, bot.chooseSetupSettlement(v));
         if (!r.ok) r = eng.placeSettlement(s, pid, eng.legalSettlements(s, pid)[0]);
@@ -246,7 +263,8 @@
   function paintTurnFrame(v) {
     var box = $('boardBox');
     if (!box) return;
-    var cur = v.phase === 'setup' ? playerIn(v, v.setup.who) : v.players[v.turn];
+    var cur = v.phase === 'setup' ? playerIn(v, v.setup.who)
+      : v.phase === 'order' ? null : v.players[v.turn];
     if (!cur || v.phase === 'over') {
       box.style.boxShadow = '';
       box.classList.remove('myTurnFrame');
@@ -280,6 +298,10 @@
     if (has('최강 기사단')) return { icon: '\uD83D\uDEE1\uFE0F', hold: 1500, big: true };
     if (has('수도 건설', '수도를 빼앗')) return { icon: '\uD83C\uDFF0', hold: 1500, big: true };
     if (has('절반 버리기')) return { icon: '\uD83D\uDDD1\uFE0F', hold: 1600, big: true };
+    if (has('첫 번째로 놓습니다')) return { icon: '\uD83E\uDD47', hold: 1900, big: true };
+    if (has('놓는 순서:')) return { icon: '\uD83D\uDD22', hold: 1900, big: true };
+    if (has('순서 주사위')) return { icon: '\uD83C\uDFB2', hold: 900 };
+    if (has('동점')) return { icon: '\uD83D\uDD01', hold: 1400, big: true };
     if (has('독점')) return { icon: '\uD83E\uDDF2', hold: 1500, big: true };
 
     // ── 주사위와 생산 ────────────────────────────────
@@ -427,6 +449,18 @@
           (mineOffer ? '. 조건을 바꾸거나 제안을 거두세요' : '');
       }
       if (!mineOffer && !v.trade.replies[v.me]) msg = actor.name + '의 제안 — 받을지 말지 고르세요';
+    } else if (v.phase === 'order') {
+      var need = v.players.filter(function (p2) {
+        if (p2.out) return false;
+        if (v.order.tie && v.order.tie.indexOf(p2.id) < 0) return false;
+        return v.order.rolls[p2.id] === undefined;
+      });
+      actor = need[0] || null;
+      var mineTurn = need.some(function (p2) { return p2.id === v.me; });
+      msg = v.order.tie
+        ? '동점! ' + need.map(function (p2) { return p2.name; }).join(', ') + '이(가) 다시 굴립니다'
+        : '순서를 정합니다 — 가장 높은 눈이 첫 번째';
+      if (mineTurn) msg += ' · 내 차례입니다';
     } else if (v.phase === 'setup') {
       actor = playerIn(v, v.setup.who);
       var second = v.setup.idx >= v.players.length;
@@ -983,9 +1017,10 @@
       var robbedHere = h.i === v.robber;
       var hexEl = svgEl('polygon', {
         points: hexPoints(cx, cy),
-        class: 'hex t-' + h.terrain + (robbedHere ? ' robbed' : ''),
+        class: 'hex t-' + h.terrain + (robbedHere ? ' robbed' : '') + (App.intro ? ' tileIn' : ''),
         'data-hex': h.i
       });
+      if (App.intro) hexEl.style.animationDelay = (h.i * 70) + 'ms';
       // 도둑 옮기기 — 내 차례면 타일을 누른다
       if (v.phase === 'robber' && myTurn && h.i !== v.robber) {
         hexEl.classList.add('robTarget');
@@ -1000,18 +1035,22 @@
       var hasNum = !!h.number;
       var emo = svgEl('text', {
         x: cx, y: cy + (hasNum ? -12 : 6), 'font-size': hasNum ? 21 : 26,
-        'text-anchor': 'middle', class: 'terrEmo'
+        'text-anchor': 'middle', class: 'terrEmo' + (App.intro ? ' chipIn' : '')
       });
+      if (App.intro) emo.style.animationDelay = (INTRO_TILES + h.i * 55) + 'ms';
       emo.textContent = h.res ? EMOJI[h.res] : '\uD83C\uDF35';   // 사막은 🌵
       g.appendChild(emo);
 
       if (hasNum) {
         var hot = h.number === 6 || h.number === 8;
         var ny = cy + 17;
-        g.appendChild(svgEl('circle', { cx: cx, cy: ny, r: 14, class: 'chipC' }));
+        var chipG = svgEl('g', { class: 'chipG' + (App.intro ? ' chipIn' : '') });
+        if (App.intro) chipG.style.animationDelay = (INTRO_TILES + h.i * 55) + 'ms';
+        chipG.appendChild(svgEl('circle', { cx: cx, cy: ny, r: 14, class: 'chipC' }));
         var t = svgEl('text', { x: cx, y: ny + 5, 'font-size': 15, class: 'chipT' + (hot ? ' hot' : '') });
         t.textContent = h.number;
-        g.appendChild(t);
+        chipG.appendChild(t);
+        g.appendChild(chipG);
       }
     });
 
@@ -1365,7 +1404,12 @@
       var d = el('div', 'pl' + (p.out ? ' out' : ''));
       d.dataset.pid = p.id;
       d.style.borderLeftColor = PCOLOR[p.color];
-      var isTurn = (v.phase === 'setup' ? v.setup.who === p.id : v.turn === i) && v.phase !== 'over';
+      var isTurn;
+      if (v.phase === 'order') {
+        isTurn = (!v.order.tie || v.order.tie.indexOf(p.id) >= 0) && v.order.rolls[p.id] === undefined;
+      } else if (v.phase === 'setup') isTurn = v.setup.who === p.id;
+      else isTurn = v.turn === i;
+      isTurn = isTurn && v.phase !== 'over';
       if (isTurn) {
         d.classList.add('turn');
         d.classList.add(p.id === v.me ? 'turnMine' : 'turnOther');
@@ -1436,6 +1480,7 @@
       // 실제 카드처럼 겹쳐 쌓는다 (많으면 다섯 장까지만 보여주고 숫자로)
       var fan = el('div', 'fan');
       var show = Math.min(n, 5);
+      fan.style.setProperty('--mid', (show - 1) / 2);
       for (var i = 0; i < show; i++) {
         var card = el('div', 'resCard r-' + c);
         card.style.setProperty('--i', i);
@@ -1899,6 +1944,29 @@
     // 거래 제안이 떠 있으면 최우선으로 보여준다
     if (v.trade) { renderTrade(v, msg, acts, btn); return; }
 
+    if (v.phase === 'order') {
+      var mineNeed = (!v.order.tie || v.order.tie.indexOf(v.me) >= 0) && v.order.rolls[v.me] === undefined;
+      msg.innerHTML = v.order.tie
+        ? '<b>동점</b>이라 다시 굴립니다.'
+        : '누가 먼저 놓을지 <b>주사위</b>로 정합니다. 가장 높은 눈이 첫 번째입니다.';
+      var res = el('div', 'orderList');
+      v.players.forEach(function (q) {
+        if (q.out) return;
+        var row = el('span', 'orderRow');
+        var dot = el('i', 'orderDot');
+        dot.style.background = PCOLOR[q.color];
+        row.appendChild(dot);
+        row.appendChild(el('b', null, q.name));
+        var rr = v.order.rolls[q.id];
+        row.appendChild(el('span', 'orderVal', rr ? (rr.d[0] + ' + ' + rr.d[1] + ' = ' + rr.sum) : '…'));
+        if (v.order.tie && v.order.tie.indexOf(q.id) >= 0) row.classList.add('tie');
+        res.appendChild(row);
+      });
+      box.appendChild(res);
+      if (mineNeed) btn('주사위 굴리기', function () { act('rollForOrder', []); }, true);
+      return;
+    }
+
     if (v.phase === 'setup') {
       if (myTurn) {
         var second = v.setup.idx >= v.players.length;
@@ -2194,7 +2262,7 @@
       else if (msg.t === 'view') {
         App.me = msg.view.me;
         App.ext = msg.view.ext === 'ck';
-        if ($('game').classList.contains('hidden')) show('game');
+        if ($('game').classList.contains('hidden')) { show('game'); startIntro(); }
         applyView(msg.view);
       } else if (msg.t === 'err') toast(msg.msg);
     };

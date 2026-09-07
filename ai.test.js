@@ -11,7 +11,18 @@ function group(name) { console.log(name); }
 function game(n, seed) {
   var seats = [];
   for (var i = 0; i < n; i++) seats.push({ id: 'p' + i, name: 'p' + i, bot: true });
-  return R.newGame(seats, seed);
+  var s = R.newGame(seats, seed);
+  var guard = 0;
+  while (s.phase === 'order' && guard++ < 60) {
+    R.needsAction(s).forEach(function (pid) { R.rollForOrder(s, pid); });
+  }
+  // 봇 검사는 순서에 흔들리지 않게 선을 첫 자리로 맞춘다
+  var n2 = s.players.length, seq = [];
+  for (var i = 0; i < n2; i++) seq.push(i);
+  s.setupOrder = seq.concat(seq.slice().reverse());
+  s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
+  s.firstPlayer = s.players[0].id;
+  return s;
 }
 
 /* 봇으로 한 판을 끝까지 돌린다 */

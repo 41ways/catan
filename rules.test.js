@@ -8,11 +8,26 @@ function ok(cond, name) { if (cond) pass++; else { fail++; console.log('  ✗ ' 
 function eq(a, b, name) { ok(a === b, name + ' — ' + JSON.stringify(a) + ' ≠ ' + JSON.stringify(b)); }
 function group(name) { console.log(name); }
 
+// 순서 정하기를 끝내고 준비 단계로 보낸다.
+// 다른 검사들이 순서에 흔들리지 않게 선은 첫 번째 자리로 맞춘다.
+function settleOrder(s) {
+  var guard = 0;
+  while (s.phase === 'order' && guard++ < 60) {
+    R.needsAction(s).forEach(function (pid) { R.rollForOrder(s, pid); });
+  }
+  var n = s.players.length, seq = [];
+  for (var i = 0; i < n; i++) seq.push(i);
+  s.setupOrder = seq.concat(seq.slice().reverse());
+  s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
+  s.firstPlayer = s.players[0].id;
+  return s;
+}
+
 function game(n, seed) {
   var seats = [];
   var names = ['가', '나', '다', '라'];
   for (var i = 0; i < n; i++) seats.push({ id: 'p' + i, name: names[i] });
-  return R.newGame(seats, seed || 7);
+  return settleOrder(R.newGame(seats, seed || 7));
 }
 var __bankRef = null;
 function give(p, map) {
@@ -93,6 +108,75 @@ group('판 만들기');
 })();
 
 /* ---------------- 준비 단계 ---------------- */
+
+group('순서 정하기');
+(function () {
+  var s = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 4242);
+  eq(s.phase, 'order', '판이 열리면 순서부터 정한다');
+  eq(s.setupOrder.length, 0, '순서가 정해지기 전에는 놓는 차례가 없다');
+  ok(!R.placeSettlement(s, 'p0', 0).ok, '순서를 정하기 전에는 마을을 못 놓는다');
+  eq(R.needsAction(s).length, 3, '모두가 굴려야 한다');
+  ok(R.rollForOrder(s, 'p0').ok, '주사위를 굴린다');
+  ok(!R.rollForOrder(s, 'p0').ok, '두 번은 못 굴린다');
+  R.rollForOrder(s, 'p1');
+  R.rollForOrder(s, 'p2');
+  var guard = 0;
+  while (s.phase === 'order' && guard++ < 60) {
+    R.needsAction(s).forEach(function (pid) { R.rollForOrder(s, pid); });
+  }
+  eq(s.phase, 'setup', '정해지면 준비 단계로');
+  ok(!!s.firstPlayer, '선이 정해졌다');
+  eq(s.setupOrder.length, 6, '뱀 순서는 인원의 두 배');
+  eq(s.players[s.setupOrder[0]].id, s.firstPlayer, '선이 첫 번째로 놓는다');
+  ok(s.setupOrder.slice(0, 3).join(',') === s.setupOrder.slice(3).reverse().join(','), '두 바퀴째는 역순');
+
+  // 가장 높은 눈이 선이 된다
+  var s2 = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }], 99);
+  var g2 = 0;
+  while (s2.phase === 'order' && g2++ < 60) {
+    R.needsAction(s2).forEach(function (pid) { R.rollForOrder(s2, pid); });
+  }
+  var rolls = s2.orderRolls;
+  var top = null;
+  Object.keys(rolls).forEach(function (id) {
+    if (!top || rolls[id].sum > rolls[top].sum) top = id;
+  });
+  eq(s2.firstPlayer, top, '가장 높은 눈을 낸 사람이 선');
+
+  // 동점이면 그 사람들끼리 다시 굴린다
+  var s3 = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 7);
+  s3.orderRolls = { p0: { d: [3, 3], sum: 6 }, p1: { d: [2, 4], sum: 6 } };
+  R.rollForOrder(s3, 'p2');                     // 마지막 사람이 굴려 판정이 돈다
+  if (s3.phase === 'order' && s3.orderTie) {
+    ok(s3.orderTie.length >= 2, '동점자끼리 다시 굴린다');
+    ok(s3.orderRolls[s3.orderTie[0]] === undefined, '동점자의 눈은 지워진다');
+    ok(!R.rollForOrder(s3, s3.players.filter(function (p) {
+      return s3.orderTie.indexOf(p.id) < 0;
+    })[0].id).ok, '재굴림 대상이 아니면 못 굴린다');
+  } else {
+    ok(s3.phase === 'setup', '동점이 아니면 바로 준비 단계');
+  }
+
+  // 굴리는 중에 나가면 남은 사람끼리 정해진다
+  var s4 = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 55);
+  R.rollForOrder(s4, 'p0');
+  R.rollForOrder(s4, 'p1');
+  R.dropPlayer(s4, 'p2');
+  ok(s4.phase === 'setup' || (s4.phase === 'order' && s4.orderTie), '셋째가 나가면 둘의 눈으로 바로 정해진다');
+  if (s4.phase === 'setup') ok(s4.setupOrder.indexOf(2) < 0, '나간 사람은 놓는 순서에 없다');
+
+  // 준비가 끝나면 첫 번째로 놓은 사람이 첫 주사위를 굴린다
+  var s5 = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 808);
+  var g5 = 0;
+  while (s5.phase === 'order' && g5++ < 60) R.needsAction(s5).forEach(function (pid) { R.rollForOrder(s5, pid); });
+  while (s5.phase === 'setup') {
+    var w5 = s5.players[s5.setupOrder[s5.setupIdx]].id;
+    if (s5.setupSub === 'settlement') R.placeSettlement(s5, w5, R.legalSettlements(s5, w5)[0]);
+    else R.placeRoad(s5, w5, R.legalRoads(s5, w5)[0]);
+  }
+  eq(R.current(s5).id, s5.firstPlayer, '선이 첫 주사위를 굴린다');
+})();
+
 group('준비 단계');
 (function () {
   var s = game(3, 11);

@@ -231,20 +231,19 @@
           out: false
         };
       }),
-      turn: 0, phase: 'setup', dice: null,
+      turn: 0, phase: 'order', dice: null,
       setupIdx: 0, setupSub: 'settlement', setupSpot: null,
       robber: 0, robberBack: 'main',
       mustDiscard: {}, stealFrom: [],
       playedDev: false, boughtDev: [], freeRoads: 0,
       trade: null,
       longest: { p: null, len: 0 }, army: { p: null, n: 0 },
-      turnCount: 0, winner: null, log: [], logId: 0, lastGain: null, recent: []
+      turnCount: 0, winner: null, log: [], logId: 0, lastGain: null, recent: [],
+      orderRolls: {}, orderTie: null, firstPlayer: null
     };
     s.board.hexes.forEach(function (h, i) { if (h.terrain === 'desert') s.robber = i; });
     s.setupOrder = [];
-    for (var i = 0; i < s.players.length; i++) s.setupOrder.push(i);
-    for (var j = s.players.length - 1; j >= 0; j--) s.setupOrder.push(j);
-    say(s, null, '마을을 하나 놓고 도로를 하나 놓습니다. 두 바퀴째는 역순이고, 그때 놓은 마을 둘레의 자원을 받습니다.');
+    say(s, null, '먼저 주사위를 굴려 순서를 정합니다. 그다음 마을을 하나 놓고 도로를 하나 놓습니다. 두 바퀴째는 역순이고, 그때 놓은 마을 둘레의 자원을 받습니다.');
     return s;
   }
 
@@ -415,6 +414,65 @@
     });
   }
 
+
+  /* ---------------- 순서 정하기 ---------------- */
+
+  // 저마다 주사위 두 개를 굴려 가장 높은 사람이 선이 된다. 같으면 그 사람들끼리 다시.
+  function rollForOrder(s, pid) {
+    if (s.phase !== 'order') return err('지금은 순서를 정할 때가 아닙니다.');
+    var p = playerOf(s, pid);
+    if (!p || p.out) return err('참가자가 아닙니다.');
+    if (s.orderTie && s.orderTie.indexOf(pid) < 0) return err('이번 재굴림 대상이 아닙니다.');
+    if (s.orderRolls[pid] !== undefined) return err('이미 굴렸습니다.');
+    var d1 = roll1(s), d2 = roll1(s);
+    s.orderRolls[pid] = { d: [d1, d2], sum: d1 + d2 };
+    say(s, null, p.name + ' 순서 주사위 ' + d1 + ' + ' + d2 + ' = ' + (d1 + d2));
+
+    resolveOrder(s);
+    return OK;
+  }
+
+  // 다 굴렸으면 선을 정한다. 동점이면 그 사람들끼리 다시.
+  function resolveOrder(s) {
+    if (s.phase !== 'order') return;
+    var who = s.orderTie || s.players.filter(function (q) { return !q.out; }).map(function (q) { return q.id; });
+    who = who.filter(function (id) { var q = playerOf(s, id); return q && !q.out; });
+    if (!who.length) return;
+    var allDone = who.every(function (id) { return s.orderRolls[id] !== undefined; });
+    if (!allDone) return;
+
+    var top = -1;
+    who.forEach(function (id) { if (s.orderRolls[id].sum > top) top = s.orderRolls[id].sum; });
+    var best = who.filter(function (id) { return s.orderRolls[id].sum === top; });
+    if (best.length > 1) {
+      s.orderTie = best;
+      best.forEach(function (id) { delete s.orderRolls[id]; });
+      say(s, null, best.map(function (id) { return nameOfP(s, id); }).join(', ') + ' 동점(' + top + ') — 다시 굴립니다.');
+      return;
+    }
+    startSetup(s, best[0]);
+  }
+  function nameOfP(s, pid) { var p = playerOf(s, pid); return p ? p.name : '?'; }
+
+  // 선을 기준으로 자리 순서대로 돌고, 두 바퀴째는 역순
+  function startSetup(s, firstId) {
+    s.firstPlayer = firstId;
+    s.orderTie = null;
+    var live = s.players.filter(function (q) { return !q.out; });
+    var startIdx = 0;
+    s.players.forEach(function (q, i) { if (q.id === firstId) startIdx = i; });
+    var seq = [];
+    for (var k = 0; k < s.players.length; k++) {
+      var idx = (startIdx + k) % s.players.length;
+      if (!s.players[idx].out) seq.push(idx);
+    }
+    s.setupOrder = seq.concat(seq.slice().reverse());
+    s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
+    s.phase = 'setup';
+    say(s, null, nameOfP(s, firstId) + '이(가) 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
+    say(s, null, '놓는 순서: ' + seq.map(function (i2) { return s.players[i2].name; }).join(' → ') + ', 두 바퀴째는 반대로');
+  }
+
   /* ---------------- 준비 단계 ---------------- */
 
   function setupPlayer(s) { return s.players[s.setupOrder[s.setupIdx]]; }
@@ -455,9 +513,9 @@
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
-      s.phase = 'roll'; s.turn = 0; s.turnCount = 1;
+      s.phase = 'roll'; s.turn = s.setupOrder[0]; s.turnCount = 1;   // 먼저 놓은 사람이 먼저 굴린다
       updateLongest(s);
-      say(s, null, '준비 끝. ' + s.players[0].name + '부터 주사위를 굴립니다.');
+      say(s, null, '준비 끝. ' + current(s).name + '부터 주사위를 굴립니다.');
     }
     return OK;
   }
@@ -903,12 +961,22 @@
       s.winner = live.length ? live[0].id : null;
       return;
     }
+    if (s.phase === 'order') {
+      delete s.orderRolls[pid];
+      if (s.orderTie) {
+        s.orderTie = s.orderTie.filter(function (x) { return x !== pid; });
+        if (s.orderTie.length === 1) { startSetup(s, s.orderTie[0]); return; }
+        if (!s.orderTie.length) s.orderTie = null;
+      }
+      resolveOrder(s);                                   // 남은 사람이 다 굴렸으면 바로 정한다
+      return;
+    }
     if (s.phase === 'setup') {
       // 준비 단계에서 나가면 남은 자리를 건너뛴다
       while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) {
         s.setupIdx++; s.setupSub = 'settlement'; s.setupSpot = null;
       }
-      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = 0; s.turnCount = 1; }
+      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = s.setupOrder[0]; s.turnCount = 1; }
       return;
     }
     if (s.phase === 'discard' && !Object.keys(s.mustDiscard).length) s.phase = 'robber';
@@ -938,6 +1006,7 @@
       blocked: s.blocked || null,
       lastBank: (s.lastBank && s.lastBank.turn >= s.turnCount - 1) ? s.lastBank : null,
       setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
+      order: { rolls: JSON.parse(JSON.stringify(s.orderRolls || {})), tie: s.orderTie ? s.orderTie.slice() : null, first: s.firstPlayer || null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,
       longest: JSON.parse(JSON.stringify(s.longest)),
@@ -986,6 +1055,10 @@
   function needsAction(s) {
     if (s.phase === 'over') return [];
     if (s.phase === 'discard') return Object.keys(s.mustDiscard);
+    if (s.phase === 'order') {
+      var who = s.orderTie || s.players.filter(function (q) { return !q.out; }).map(function (q) { return q.id; });
+      return who.filter(function (id) { return s.orderRolls[id] === undefined; });
+    }
     if (s.phase === 'setup') return [setupPlayer(s).id];
     return [current(s).id];
   }
@@ -1007,7 +1080,7 @@
     vpOf: vpOf, vpFull: vpFull, roadLength: roadLength, tradeRate: tradeRate,
     legalSettlements: legalSettlements, legalCities: legalCities, legalRoads: legalRoads,
     robberVictims: robberVictims, portName: portName, resText: resText,
-    placeSettlement: placeSettlement, placeRoad: placeRoad, roll: roll, discard: discard,
+    rollForOrder: rollForOrder, placeSettlement: placeSettlement, placeRoad: placeRoad, roll: roll, discard: discard,
     moveRobber: moveRobber, build: build, buyDev: buyDev, playDev: playDev,
     bankTrade: bankTrade, offerTrade: offerTrade, replyTrade: replyTrade,
     acceptTrade: acceptTrade, cancelTrade: cancelTrade, endTurn: endTurn, dropPlayer: dropPlayer

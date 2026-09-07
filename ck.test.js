@@ -9,10 +9,23 @@ function ok(c, n) { if (c) pass++; else { fail++; console.log('  ✗ ' + n); } }
 function eq(a, b, n) { ok(a === b, n + ' — ' + JSON.stringify(a) + ' ≠ ' + JSON.stringify(b)); }
 function group(n) { console.log(n); }
 
+function settleOrder(s) {
+  var guard = 0;
+  while (s.phase === 'order' && guard++ < 60) {
+    CK.needsAction(s).forEach(function (pid) { CK.rollForOrder(s, pid); });
+  }
+  var n = s.players.length, seq = [];
+  for (var i = 0; i < n; i++) seq.push(i);
+  s.setupOrder = seq.concat(seq.slice().reverse());
+  s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
+  s.firstPlayer = s.players[0].id;
+  return s;
+}
+
 function game(n, seed) {
   var seats = [], names = ['가', '나', '다', '라'];
   for (var i = 0; i < n; i++) seats.push({ id: 'p' + i, name: names[i] });
-  return CK.newGame(seats, seed || 7);
+  return settleOrder(CK.newGame(seats, seed || 7));
 }
 function ready(n, seed) {
   var s = game(n, seed);
@@ -55,6 +68,19 @@ group('구성');
   CK.EVENT_FACES.forEach(function (f) { faces[f] = (faces[f] || 0) + 1; });
   eq(faces.ship, 3, '이벤트 주사위 야만선 세 면');
   ok(faces.trade === 1 && faces.politics === 1 && faces.science === 1, '성문 세 면');
+})();
+
+
+group('순서 정하기 (확장)');
+(function () {
+  var s = CK.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 321);
+  eq(s.phase, 'order', '확장도 순서부터 정한다');
+  var guard = 0;
+  while (s.phase === 'order' && guard++ < 60) {
+    CK.needsAction(s).forEach(function (pid) { CK.rollForOrder(s, pid); });
+  }
+  eq(s.phase, 'setup', '정해지면 준비 단계로');
+  eq(s.players[s.setupOrder[0]].id, s.firstPlayer, '선이 첫 번째로 놓는다');
 })();
 
 group('준비 — 마을 하나와 도시 하나');
@@ -273,6 +299,32 @@ group('야만족 침략');
   var after = s2.players.map(function (q) { return q.cities.length; });
   var lost = before.filter(function (b, i) { return after[i] < b; }).length;
   ok(lost >= 1, '도시 하나가 마을로 내려갔다');
+})();
+
+
+group('약탈 — 마을 말이 없을 때 (룰북 9쪽)');
+(function () {
+  var s = ready(2, 909);
+  var p = s.players[0];
+  s.turn = 0; s.phase = 'main';
+  // 마을 말을 다 쓴 상태로 만든다
+  p.left.settlement = 0;
+  var before = { city: p.left.city, sett: p.left.settlement };
+  s.players.forEach(function (q) { q.knights = []; });      // 방어 실패를 만든다
+  s.barb = CK.BARB_TRACK - 1;
+  var guard = 0;
+  while (guard++ < 3000) {
+    s.phase = 'roll'; s.dice = null;
+    CK.roll(s, CK.current(s).id);
+    if (s.barbResult) break;
+    if (s.phase !== 'roll') { s.phase = 'main'; s.turn = 0; }
+    s.barb = CK.BARB_TRACK - 1;
+  }
+  ok(p.left.settlement >= 0, '마을 말이 음수가 되지 않는다');
+  ok(p.left.city >= 0, '도시 말도 음수가 되지 않는다');
+  s.players.forEach(function (q) {
+    ok(q.left.settlement >= 0 && q.left.city >= 0 && q.left.road >= 0, q.name + ' 말 개수가 온전하다');
+  });
 })();
 
 group('성벽과 손패 한도');
@@ -512,6 +564,10 @@ group('무작위 60판 완주');
   ok(done >= 57, '60판 중 ' + done + '판이 승자로 끝났다');
 
   function step(s) {
+    if (s.phase === 'order') {
+      CK.needsAction(s).forEach(function (pid) { CK.rollForOrder(s, pid); });
+      return;
+    }
     if (s.trade) {
       var pend = CK.tradePending(s);
       if (pend.length) { CK.replyTrade(s, pend[0], rnd() < 0.4); return; }

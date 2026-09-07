@@ -577,33 +577,39 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .pl .st.road { color: var(--faint); }
 
 
-/* ---------------- 손패 — 진짜 카드처럼 ---------------- */
+/* ---------------- 손패 — 부채처럼 펼친 카드 ---------------- */
 
 .hand {
-  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
-  padding: 4px 0 2px;
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+  justify-content: center;                 /* 가운데 정렬 */
+  padding: 6px 0 2px;
 }
 .cardSlot {
   position: relative; display: flex; flex-direction: column; align-items: center;
-  padding-top: 2px;
+  padding-top: 4px;
 }
-/* 겹쳐 쌓인 카드 — 장수가 많을수록 더 두껍게 보인다 */
-.fan { position: relative; width: 46px; height: 62px; }
+/* 가진 장수만큼 실제로 펼쳐 놓는다 */
+.fan { position: relative; display: flex; align-items: flex-end; height: 88px; }
 .resCard {
-  position: absolute; left: 0; top: 0;
-  width: 46px; height: 62px; border-radius: 7px;
+  position: relative; flex: 0 0 auto;
+  width: 62px; height: 84px; border-radius: 8px;
   background: var(--cardFace, #f7f1e2);
-  border: 1.5px solid rgba(0,0,0,0.45);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.28);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  transform: translate(calc(var(--i) * 3px), calc(var(--i) * -3px));
+  border: 1.6px solid rgba(0,0,0,0.45);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  margin-left: -38px;                      /* 겹치는 정도 */
+  transform-origin: bottom center;
+  transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg));
   transition: transform 0.16s, filter 0.16s;
 }
-.resCard .resFace { font-size: 22px; line-height: 1; }
-.resCard .resName { font-size: 10px; font-weight: 700; color: #3a3227; letter-spacing: -0.02em; }
-/* 자원별 색띠 */
+.resCard:first-child { margin-left: 0; }
+.resCard .resFace { font-size: 30px; line-height: 1; }
+.resCard .resName { font-size: 11px; font-weight: 700; color: #3a3227; letter-spacing: -0.02em; }
+/* 뒤에 깔린 카드는 색띠만 — 글자가 삐져나오지 않게 */
+.resCard:not(:last-child) .resFace,
+.resCard:not(:last-child) .resName { visibility: hidden; }
 .resCard::before {
-  content: ''; position: absolute; left: 4px; right: 4px; top: 4px; height: 4px; border-radius: 2px;
+  content: ''; position: absolute; left: 5px; right: 5px; top: 5px; height: 5px; border-radius: 3px;
   background: var(--tone, #bbb);
 }
 .resCard.r-b { --tone: #b5623f; }
@@ -616,25 +622,23 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .resCard.r-n { --tone: #c9a227; }
 .resCard.ghost {
   background: transparent; border-style: dashed; border-color: var(--line);
-  box-shadow: none; opacity: 0.5;
+  box-shadow: none; opacity: 0.5; transform: none;
 }
 .resCard.ghost .resFace { filter: grayscale(1); opacity: 0.5; }
 .resCard.ghost .resName { color: var(--faint); }
-.resCard.taken { filter: grayscale(0.8) brightness(0.85); transform: translate(calc(var(--i) * 3px), calc(var(--i) * -3px)) rotate(-6deg); }
+.resCard.taken { filter: grayscale(0.85) brightness(0.85); }
 
-/* 몇 장인지 — 카드 위에 뱃지로 */
+/* 몇 장인지 — 카드 아래 가운데 */
 .cardCount {
-  position: absolute; right: -5px; top: -6px; z-index: 3;
-  min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
-  background: #2b2419; color: #fdf8ec;
-  font-size: 12.5px; font-weight: 800; line-height: 20px; text-align: center;
-  border: 1.5px solid #fdf8ec;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  position: absolute; right: 4px; bottom: -11px; z-index: 3;
+  min-width: 30px; height: 24px; padding: 0 8px; border-radius: 12px;
+  background: #2b2419; color: #fdf8ec; border: 1.5px solid #fdf8ec;
+  font-size: 15px; font-weight: 800; line-height: 21px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
 }
 .cardCount.zero { background: var(--line); color: var(--dim); border-color: var(--panel); }
-.cardSlot.empty .fan { height: 62px; }
 .cardSlot.selectable { cursor: pointer; }
-.cardSlot.selectable:hover .resCard { transform: translate(calc(var(--i) * 3px), calc(var(--i) * -5px)); }
+.cardSlot.selectable:hover .resCard { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-5px); }
 .cardSlot.sel .cardCount { background: var(--gold); color: var(--btnInk); }
 .cardSlot.com .resCard { border-style: dashed; }
 
@@ -642,9 +646,52 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 :root[data-theme="dark"] { --cardFace: #efe6d2; }
 
 @media (max-width: 560px) {
-  .hand { gap: 8px; }
-  .fan, .resCard { width: 38px; height: 52px; }
-  .resCard .resFace { font-size: 18px; }
-  .resCard .resName { font-size: 9px; }
-  .cardCount { min-width: 18px; height: 18px; line-height: 18px; font-size: 11px; }
+  .hand { gap: 6px; }
+  .fan { height: 62px; }
+  .resCard { width: 40px; height: 58px; margin-left: -29px; border-radius: 6px; gap: 1px; }
+  .resCard .resFace { font-size: 19px; }
+  .resCard .resName { font-size: 8.5px; }
+  .resCard::before { left: 3px; right: 3px; top: 3px; height: 3.5px; }
+  .resCard:nth-child(n+4) { display: none; }   /* 좁으면 세 장까지만 펼친다 */
+  .cardCount { min-width: 22px; height: 19px; line-height: 16px; font-size: 12px; bottom: -8px; right: 1px; padding: 0 5px; }
+  .cardSlot { padding-top: 2px; }
 }
+@media (max-width: 400px) {
+  .hand { gap: 4px; }
+  .resCard { width: 36px; height: 52px; margin-left: -26px; }
+  .resCard .resFace { font-size: 17px; }
+  .resCard:nth-child(n+3) { display: none; }
+}
+
+
+/* ---------------- 판이 깔리는 연출 ---------------- */
+
+.hex.tileIn {
+  opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: tileDrop 0.42s cubic-bezier(0.2, 1.2, 0.4, 1) forwards;
+}
+@keyframes tileDrop {
+  0%   { opacity: 0; transform: scale(0.55) translateY(-14px); }
+  70%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+.chipIn {
+  opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: chipDrop 0.34s cubic-bezier(0.2, 1.3, 0.4, 1) forwards;
+}
+@keyframes chipDrop {
+  0%   { opacity: 0; transform: scale(0.3); }
+  70%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: none; }
+}
+
+
+/* 순서 정하기 */
+.orderList { display: flex; gap: 10px; flex-wrap: wrap; }
+.orderRow {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 5px 10px;
+}
+.orderRow.tie { border-color: var(--gold); }
+.orderDot { width: 9px; height: 9px; border-radius: 50%; }
+.orderVal { color: var(--dim); font-weight: 700; }

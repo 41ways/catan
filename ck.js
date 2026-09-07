@@ -133,7 +133,7 @@
           out: false
         };
       }),
-      turn: 0, phase: 'setup', dice: null, event: null,
+      turn: 0, phase: 'order', dice: null, event: null,
       setupIdx: 0, setupSub: 'settlement', setupSpot: null,
       robber: 0, robberBack: 'main', merchant: null,
       mustDiscard: {}, freeRoads: 0,
@@ -143,13 +143,12 @@
       trade: null,
       longest: { p: null, len: 0 },
       pending: null,                                  // 카드 처리 중 기다리는 선택
-      turnCount: 0, winner: null, log: [], logId: 0, recent: []
+      turnCount: 0, winner: null, log: [], logId: 0, recent: [],
+      orderRolls: {}, orderTie: null, firstPlayer: null
     };
     board.hexes.forEach(function (h, i) { if (h.terrain === 'desert') s.robber = i; });
     s.setupOrder = [];
-    for (var i = 0; i < s.players.length; i++) s.setupOrder.push(i);
-    for (var j = s.players.length - 1; j >= 0; j--) s.setupOrder.push(j);
-    say(s, null, '마을과 도로를 하나씩 놓고, 두 바퀴째는 역순으로 도시와 도로를 놓습니다. 도시 둘레의 자원을 받고 시작합니다.');
+    say(s, null, '먼저 주사위를 굴려 순서를 정합니다. 그다음 마을과 도로를 하나씩 놓고, 두 바퀴째는 역순으로 도시와 도로를 놓습니다. 도시 둘레의 자원을 받고 시작합니다.');
     return s;
   }
 
@@ -335,6 +334,65 @@
     s.longest = { p: tops[0].id, len: top };
   }
 
+
+
+  /* ---------------- 순서 정하기 ---------------- */
+
+  // 저마다 주사위 두 개를 굴려 가장 높은 사람이 선이 된다. 같으면 그 사람들끼리 다시.
+  function rollForOrder(s, pid) {
+    if (s.phase !== 'order') return err('지금은 순서를 정할 때가 아닙니다.');
+    var p = playerOf(s, pid);
+    if (!p || p.out) return err('참가자가 아닙니다.');
+    if (s.orderTie && s.orderTie.indexOf(pid) < 0) return err('이번 재굴림 대상이 아닙니다.');
+    if (s.orderRolls[pid] !== undefined) return err('이미 굴렸습니다.');
+    var d1 = roll1(s), d2 = roll1(s);
+    s.orderRolls[pid] = { d: [d1, d2], sum: d1 + d2 };
+    say(s, null, p.name + ' 순서 주사위 ' + d1 + ' + ' + d2 + ' = ' + (d1 + d2));
+
+    resolveOrder(s);
+    return OK;
+  }
+
+  // 다 굴렸으면 선을 정한다. 동점이면 그 사람들끼리 다시.
+  function resolveOrder(s) {
+    if (s.phase !== 'order') return;
+    var who = s.orderTie || s.players.filter(function (q) { return !q.out; }).map(function (q) { return q.id; });
+    who = who.filter(function (id) { var q = playerOf(s, id); return q && !q.out; });
+    if (!who.length) return;
+    var allDone = who.every(function (id) { return s.orderRolls[id] !== undefined; });
+    if (!allDone) return;
+
+    var top = -1;
+    who.forEach(function (id) { if (s.orderRolls[id].sum > top) top = s.orderRolls[id].sum; });
+    var best = who.filter(function (id) { return s.orderRolls[id].sum === top; });
+    if (best.length > 1) {
+      s.orderTie = best;
+      best.forEach(function (id) { delete s.orderRolls[id]; });
+      say(s, null, best.map(function (id) { return nameOfP(s, id); }).join(', ') + ' 동점(' + top + ') — 다시 굴립니다.');
+      return;
+    }
+    startSetup(s, best[0]);
+  }
+  function nameOfP(s, pid) { var p = playerOf(s, pid); return p ? p.name : '?'; }
+
+  // 선을 기준으로 자리 순서대로 돌고, 두 바퀴째는 역순
+  function startSetup(s, firstId) {
+    s.firstPlayer = firstId;
+    s.orderTie = null;
+    var live = s.players.filter(function (q) { return !q.out; });
+    var startIdx = 0;
+    s.players.forEach(function (q, i) { if (q.id === firstId) startIdx = i; });
+    var seq = [];
+    for (var k = 0; k < s.players.length; k++) {
+      var idx = (startIdx + k) % s.players.length;
+      if (!s.players[idx].out) seq.push(idx);
+    }
+    s.setupOrder = seq.concat(seq.slice().reverse());
+    s.setupIdx = 0; s.setupSub = 'settlement'; s.setupSpot = null;
+    s.phase = 'setup';
+    say(s, null, nameOfP(s, firstId) + '이(가) 가장 높은 눈을 냈습니다 — 첫 번째로 놓습니다.');
+    say(s, null, '놓는 순서: ' + seq.map(function (i2) { return s.players[i2].name; }).join(' → ') + ', 두 바퀴째는 반대로');
+  }
 
   /* ---------------- 준비 단계 ---------------- */
 
@@ -589,9 +647,11 @@
         s.board.verts[v].b = { t: 'settlement', p: p.id };
         p.cities = p.cities.filter(function (x) { return x !== v; });
         p.settlements.push(v);
-        p.left.city++; p.left.settlement--;
-        if (p.walls > 0) { p.walls--; }
-        say(s, null, p.name + '의 도시가 약탈당해 마을로 내려갔습니다.');
+        // 마을 말이 없으면 도시 말을 뒤집어 마을로 쓴다 (룰북 9쪽)
+        if (p.left.settlement > 0) { p.left.city++; p.left.settlement--; }
+        if (p.walls > 0 && s.board.verts[v].wall) { s.board.verts[v].wall = false; p.walls--; }
+        say(s, null, p.name + '의 도시가 약탈당해 마을로 내려갔습니다.' +
+          (p.left.settlement === 0 ? ' (마을 말이 없어 도시 말을 뒤집어 씁니다)' : ''));
       });
       if (!victims.length) say(s, null, '도시를 가진 사람이 없어 약탈이 없습니다.');
       s.barbResult = { win: false, power: defTotal, barb: cityCount };
@@ -1168,6 +1228,16 @@
       s.winner = live.length ? live[0].id : null;
       return;
     }
+    if (s.phase === 'order') {
+      delete s.orderRolls[pid];
+      if (s.orderTie) {
+        s.orderTie = s.orderTie.filter(function (x) { return x !== pid; });
+        if (s.orderTie.length === 1) { startSetup(s, s.orderTie[0]); return; }
+        if (!s.orderTie.length) s.orderTie = null;
+      }
+      resolveOrder(s);                                   // 남은 사람이 다 굴렸으면 바로 정한다
+      return;
+    }
     if (s.phase === 'setup') {
       while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) {
         s.setupIdx++; s.setupSub = 'settlement'; s.setupSpot = null;
@@ -1183,6 +1253,10 @@
   function needsAction(s) {
     if (s.phase === 'over') return [];
     if (s.phase === 'discard') return Object.keys(s.mustDiscard);
+    if (s.phase === 'order') {
+      var who = s.orderTie || s.players.filter(function (q) { return !q.out; }).map(function (q) { return q.id; });
+      return who.filter(function (id) { return s.orderRolls[id] === undefined; });
+    }
     if (s.phase === 'setup') return [setupPlayer(s).id];
     return [current(s).id];
   }
@@ -1576,6 +1650,7 @@
       freeRoads: s.freeRoads,
       merchant: s.merchant ? JSON.parse(JSON.stringify(s.merchant)) : null,
       setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
+      order: { rolls: JSON.parse(JSON.stringify(s.orderRolls || {})), tie: s.orderTie ? s.orderTie.slice() : null, first: s.firstPlayer || null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,
       longest: JSON.parse(JSON.stringify(s.longest)),
@@ -1652,7 +1727,7 @@
     MAX_LEVEL: MAX_LEVEL, METRO_LEVEL: METRO_LEVEL, WALL_MAX: WALL_MAX,
     CITY_YIELD: CITY_YIELD, EVENT_FACES: EVENT_FACES,
     newGame: newGame, viewFor: viewFor, playerOf: playerOf, current: current, setupPlayer: setupPlayer,
-    placeSettlement: placeSettlement, placeRoad: placeRoad, roll: roll,
+    rollForOrder: rollForOrder, placeSettlement: placeSettlement, placeRoad: placeRoad, roll: roll,
     discard: discard, moveRobber: moveRobber, robberVictims: robberVictims,
     knightPower: knightPower, build: build, placeKnight: placeKnight,
     activateKnight: activateKnight, upgradeKnight: upgradeKnight, moveKnight: moveKnight,
