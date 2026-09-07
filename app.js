@@ -1216,6 +1216,11 @@
       d.appendChild(left);
       if (v.longest.p === p.id) d.appendChild(el('span', 'badge', '교역로'));
       if (!isExt(v) && v.army && v.army.p === p.id) d.appendChild(el('span', 'badge', '기사단'));
+      if (p.roadLen >= 3 && v.longest.p !== p.id) {
+        var rl = el('span', 'st road', '\uD83D\uDEE3' + p.roadLen);
+        rl.title = '이어진 도로 ' + p.roadLen + '개 — 5개부터 최장 교역로';
+        d.appendChild(rl);
+      }
       if (isExt(v)) {
         var mm = 0;
         CK.TRACKS.forEach(function (t) { if (p.metro[t]) mm++; });
@@ -1264,6 +1269,17 @@
       d.title = resName(c);
       box.appendChild(d);
     });
+
+    // 7이 나오면 버려야 하는 상태를 미리 경고한다
+    var total = 0;
+    cardsOf(v).forEach(function (c) { total += p.res[c] || 0; });
+    var limit = isExt(v) ? (p.handLimit || 7) : R.HAND_LIMIT;
+    if (!discarding && total > limit) {
+      var warn = el('span', 'handWarn');
+      warn.textContent = '\u26A0\uFE0F 손패 ' + total + '장 — 7이 나오면 ' + Math.floor(total / 2) + '장을 버립니다';
+      warn.title = '한도는 ' + limit + '장입니다' + (isExt(v) ? ' (성벽 하나마다 +2)' : '');
+      box.appendChild(warn);
+    }
 
     if (isExt(v)) {
       // 진보카드 — 넉 장까지
@@ -1853,8 +1869,14 @@
   function renderLog(v) {
     var box = $('log');
     box.innerHTML = '';
-    v.log.forEach(function (l) {
-      box.appendChild(el('div', l.mine ? 'mine' : null, l.text));
+    v.log.forEach(function (l, i) {
+      var row = el('div', 'logRow' + (l.mine ? ' mine' : '') + (i === v.log.length - 1 ? ' last' : ''));
+      var who = lineOwner(v, l.text);
+      var dot = el('i', 'logDot');
+      dot.style.background = who ? (PCOLOR[who.color] || 'transparent') : 'transparent';
+      row.appendChild(dot);
+      row.appendChild(el('span', 'logTxt', l.text));
+      box.appendChild(row);
     });
     box.scrollTop = box.scrollHeight;
   }
