@@ -500,7 +500,7 @@
     if (has('도로 건설 —')) return { icon: '\uD83D\uDEA7', hold: 1200 };
     if (has('성문 —', '진보카드')) return { icon: '\uD83D\uDCDC', hold: 1200 };
     if (has('발전 카드', '뽑은 카드')) return { icon: '\uD83C\uDCCF', hold: 1000 };
-    if (has('단계 —')) return { icon: '\uD83D\uDCDA', hold: 1300 };
+    if (has('단계 —')) return { icon: '\uD83C\uDFD7\uFE0F', hold: 1700, big: true };   // 도시 개발은 큰 일이다
 
     // ── 거래 ────────────────────────────────────────
     if (has('거래 성사')) return { icon: '\uD83E\uDD1D', hold: 1400 };
@@ -2354,8 +2354,18 @@
         opts.push({ label: '도둑 쫓아내기', fn: function () { act('chaseRobber', [k.v]); } });
       }
     }
-    if (!opts.length) { toast(rankName + ' 기사 — 이번 차례에는 할 수 있는 일이 없습니다.'); return; }
-    openPick(rankName + ' 기사', k.active ? '활동 상태' : '비활동 상태', opts);
+    // 왜 못 움직이는지까지 한 줄로 알려 준다
+    var hint;
+    if (!k.active) hint = '비활동 상태 — 밀 1장으로 깨워야 움직이거나 도둑을 쫓을 수 있습니다.';
+    else if (!k.canAct) hint = '활동 상태 — 이번 차례에 깨웠거나 이미 움직여서, 다음 차례부터 움직일 수 있습니다.';
+    else {
+      var moves = 0;
+      try { if (App.state) moves = CK.knightMoves(App.state, v.me, k.v).length; } catch (e) { moves = -1; }
+      hint = moves === 0 ? '활동 상태 — 이어진 내 도로 끝에 갈 자리가 없습니다. 도로를 더 이어 보세요.'
+                         : '활동 상태 — 움직이거나 상대 기사를 밀어낼 수 있습니다.';
+    }
+    if (!opts.length) { toast(rankName + ' 기사 — ' + hint); return; }
+    openPick(rankName + ' 기사', hint, opts);
   }
 
 
