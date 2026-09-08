@@ -1483,3 +1483,57 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 /* 이름표 줄이 화면을 밀어내지 않게 — 넘치면 그 안에서만 옆으로 스크롤 */
 .top .players { flex: 1 1 auto; min-width: 0; }
 html, body { overflow-x: hidden; }
+
+
+/* ==================== 좁은 화면 — 판이 눌려 사라지지 않게 ==================== */
+@media (max-width: 560px) {
+  /* 판과 조작판이 서로 자리를 뺏지 않게 — 놓는 중엔 판, 고르는 중엔 조작판 */
+  .boardBox { min-height: 26dvh; }
+  #game.placing .boardBox { min-height: 50dvh; }
+  #game:not(.mine) .boardBox { min-height: 44dvh; }
+
+  /* 손패 — 0장인 자원 칸은 접는다. 한 줄로 옆으로 밀어 본다 */
+  .hand { overflow-x: auto; scrollbar-width: none; }
+  .hand::-webkit-scrollbar { display: none; }
+  .handCards { flex-wrap: nowrap; }
+  #game .cardSlot.empty { display: none; }
+
+  /* 도시와 기사 표시줄 — 두 줄 안에 들어오게 */
+  .ckBar { gap: 5px 8px; padding: 5px 8px; margin-bottom: 4px; }
+  .barbLabel { font-size: 11px; }
+  .barbTrack i { width: 8px; height: 8px; }
+  .trk { padding: 2px 4px; gap: 3px; }
+  .trkPips i { width: 5px; height: 10px; }
+  .trkBtn { font-size: 10px; padding: 2px 5px; }
+  .metro { font-size: 9.5px; }
+}
+
+
+/* 조작판이 길어지면 그 안에서 스크롤하고, 주 버튼은 바닥에 붙여 둔다 */
+@media (max-width: 560px) {
+  /* 조작판은 남는 만큼만 차지하고 그 안에서 스크롤한다 */
+  #game { overflow: hidden; }
+  .bottom { min-height: 0; flex: 0 1 auto; overflow: hidden; }
+  .hand { flex: 0 0 auto; }
+  .panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #game:not(.mine) .panel { overflow: visible; }
+  .pMain {
+    position: sticky; bottom: -1px; z-index: 2;
+    margin-top: 12px; padding: 9px 0 2px; background: var(--panel);
+    box-shadow: 0 -10px 12px -8px rgba(0,0,0,0.22);
+  }
+}
+
+
+/* 도시와 기사 표시줄 — 좁은 화면에서 두 줄 안에 */
+@media (max-width: 560px) {
+  .ckBar { padding: 4px 7px; gap: 4px 6px; }
+  .barb { width: 100%; gap: 5px; }
+  .tracks { width: 100%; gap: 4px; flex-wrap: nowrap; }
+  .trk { flex: 1 1 0; min-width: 0; justify-content: space-between; padding: 2px 4px; gap: 2px; }
+  .trkName { font-size: 10px; gap: 2px; }
+  .trkName .rc { width: 12px; height: 12px; font-size: 8px; }
+  .trkPips { gap: 1px; }
+  .trkPips i { width: 4px; height: 9px; }
+  .trkBtn { font-size: 9.5px; padding: 2px 4px; white-space: nowrap; }
+}
