@@ -38,6 +38,7 @@
       $(id).classList.toggle('hidden', id !== which);
     });
     if (which === 'title') replayTitleIntro();
+    if (which === 'game') { initZoom(); initLogFold(); }
   }
 
   // 타이틀로 돌아올 때마다 등장 연출을 처음부터 다시 돌린다
@@ -122,6 +123,105 @@
     return at - t;
   }
 
+  /* ---------------- 판 확대·이동 ----------------
+     휠·손가락 두 개로 확대하고, 확대된 상태에서 끌어 옮긴다.
+     화면에 보이는 것만 키우므로 규칙과 좌표 계산에는 영향이 없다. */
+  var Zoom = { z: 1, x: 0, y: 0, drag: null, moved: false, pts: {} };
+  var ZOOM_MIN = 1, ZOOM_MAX = 3.2;
+
+  function applyZoom() {
+    var svg = $('board'), box = $('boardBox');
+    if (!svg || !box) return;
+    svg.style.transform = 'translate(' + Zoom.x.toFixed(1) + 'px,' + Zoom.y.toFixed(1) + 'px) scale(' + Zoom.z.toFixed(3) + ')';
+    box.classList.toggle('zoomed', Zoom.z > 1.01);
+  }
+  function clampPan() {
+    var box = $('boardBox');
+    if (!box) return;
+    var r = box.getBoundingClientRect();
+    var lx = Math.max(0, (r.width * Zoom.z - r.width) / 2);
+    var ly = Math.max(0, (r.height * Zoom.z - r.height) / 2);
+    Zoom.x = Math.max(-lx, Math.min(lx, Zoom.x));
+    Zoom.y = Math.max(-ly, Math.min(ly, Zoom.y));
+  }
+  // cx, cy 는 박스 한가운데를 기준으로 한 확대 중심
+  function setZoom(nz, cx, cy) {
+    nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nz));
+    if (cx === undefined) { cx = 0; cy = 0; }
+    var k = nz / Zoom.z;
+    Zoom.x = cx - (cx - Zoom.x) * k;
+    Zoom.y = cy - (cy - Zoom.y) * k;
+    Zoom.z = nz;
+    clampPan(); applyZoom();
+  }
+  function resetZoom() { Zoom.z = 1; Zoom.x = 0; Zoom.y = 0; applyZoom(); }
+  function boxOffset(e) {
+    var r = $('boardBox').getBoundingClientRect();
+    return { x: e.clientX - (r.left + r.width / 2), y: e.clientY - (r.top + r.height / 2) };
+  }
+  function initZoom() {
+    var box = $('boardBox');
+    if (!box || box.dataset.zoomReady) return;
+    box.dataset.zoomReady = '1';
+
+    box.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var o = boxOffset(e);
+      setZoom(Zoom.z * (e.deltaY < 0 ? 1.14 : 1 / 1.14), o.x, o.y);
+    }, { passive: false });
+
+    box.addEventListener('pointerdown', function (e) {
+      Zoom.pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var ids = Object.keys(Zoom.pts);
+      if (ids.length === 2) {                       // 손가락 두 개 — 벌려서 확대
+        var a = Zoom.pts[ids[0]], b = Zoom.pts[ids[1]];
+        Zoom.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: Zoom.z };
+        Zoom.drag = null;
+      } else if (Zoom.z > 1.01) {
+        Zoom.drag = { x: e.clientX, y: e.clientY, ox: Zoom.x, oy: Zoom.y };
+        Zoom.moved = false;
+      }
+    });
+    box.addEventListener('pointermove', function (e) {
+      if (!Zoom.pts[e.pointerId]) return;
+      Zoom.pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var ids = Object.keys(Zoom.pts);
+      if (ids.length === 2 && Zoom.pinch) {
+        var a = Zoom.pts[ids[0]], b = Zoom.pts[ids[1]];
+        var d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (Zoom.pinch.d > 8) setZoom(Zoom.pinch.z * (d / Zoom.pinch.d));
+        Zoom.moved = true;
+        e.preventDefault();
+        return;
+      }
+      if (Zoom.drag) {
+        var dx = e.clientX - Zoom.drag.x, dy = e.clientY - Zoom.drag.y;
+        if (!Zoom.moved && Math.hypot(dx, dy) < 7) return;   // 살짝 흔들린 건 누른 것으로 본다
+        Zoom.moved = true;
+        Zoom.x = Zoom.drag.ox + dx; Zoom.y = Zoom.drag.oy + dy;
+        clampPan(); applyZoom();
+      }
+    });
+    var end = function (e) {
+      delete Zoom.pts[e.pointerId];
+      if (Object.keys(Zoom.pts).length < 2) Zoom.pinch = null;
+      Zoom.drag = null;
+      if (Zoom.moved) setTimeout(function () { Zoom.moved = false; }, 60);
+    };
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+    box.addEventListener('pointerleave', end);
+    // 끌어 옮긴 직후의 클릭은 놓기로 치지 않는다
+    box.addEventListener('click', function (e) {
+      if (Zoom.moved) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    box.addEventListener('dblclick', function () { resetZoom(); });
+
+    $('zoomIn').onclick = function () { setZoom(Zoom.z * 1.35); };
+    $('zoomOut').onclick = function () { setZoom(Zoom.z / 1.35); };
+    $('zoomFit').onclick = function () { resetZoom(); };
+  }
+
   function px(X) { return X * S * 0.8660254; }
   function py(Y) { return Y * S * 0.5; }
   // #rrggbb 를 밝기 f 배로
@@ -145,6 +245,7 @@
     App.build = null; App.discardSel = [];
     App.lastLogId = undefined; App.feed = []; App.feedBusy = false;
     App.seenBuilt = {}; App.confettiDone = false; App.orderSeen = {};
+    resetZoom();
     show('game');
     startIntro();
     pushViews();
@@ -1913,7 +2014,10 @@
     } else if (mode === 'settlement') {
       v.legal.settlements.forEach(function (vi) {
         var vert = v.board.verts[vi];
-        var c = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 8, class: 'spotDot' });
+        var halo = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 9, class: 'spotHalo' });
+        halo.style.animationDelay = ((vi % 7) * 0.14) + 's';
+        g.appendChild(halo);
+        var c = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 9.5, class: 'spotDot' });
         g.appendChild(c);
         // 손가락으로 누를 수 있게 보이지 않는 넓은 과녁을 덧댄다
         var hit = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 19, class: 'spotHit' });
@@ -2589,6 +2693,7 @@
     var mineNow = v.phase === 'setup' ? (v.setup && v.setup.who === v.me)
                 : v.phase === 'order' ? true : myTurn;
     var head = el('div', 'pHead' + (mineNow ? ' mine' : ''));
+    if (App.panelOpen === undefined) App.panelOpen = true;
     if (actor) {
       var dot = el('i', 'pDot');
       dot.style.background = PCOLOR[actor.color] || '';
@@ -2596,7 +2701,14 @@
     }
     head.appendChild(el('b', 'pWho', v.phase === 'order' ? '모두' : (actor ? (actor.id === v.me ? '내 차례' : actor.name + '의 차례') : '')));
     head.appendChild(el('span', 'pPhase', PHASE_TAG[v.phase] || ''));
+    // 접기 단추 — 판을 더 보고 싶을 때
+    var fold = el('button', 'pFold', App.panelOpen ? '▾' : '▴');
+    fold.type = 'button';
+    fold.title = App.panelOpen ? '조작판 접기 — 판을 더 크게' : '조작판 펼치기';
+    fold.onclick = function () { App.panelOpen = !App.panelOpen; render(); };
+    head.appendChild(fold);
     box.appendChild(head);
+    box.classList.toggle('folded', !App.panelOpen);
 
     /* ── 지시문 · 부연 ── */
     var doLine = el('p', 'pDo');
@@ -3055,6 +3167,59 @@
   document.addEventListener('pointercancel', releaseRender, true);
 
   // 지금 어느 단계인지 위쪽에 늘 보이게
+  // 판 위 안내 — 지금 판에서 무엇을 눌러야 하는지
+  function renderBoardHint(v) {
+    var box = $('boardHint');
+    if (!box) return;
+    var txt = '';
+    if (v.phase === 'setup' && v.setup && v.setup.who === v.me) {
+      var second = v.setup.idx >= v.players.length;
+      var what = (isExt(v) && second) ? '도시' : '마을';
+      txt = v.setup.sub === 'settlement'
+        ? '주황 점을 눌러 ' + EUL(what) + ' 놓으세요 · ' + (v.legal.settlements || []).length + '곳'
+        : '주황 선을 눌러 도로를 놓으세요 · ' + (v.legal.roads || []).length + '곳';
+    } else if (v.phase === 'robber' && isMyTurn(v)) {
+      txt = '타일을 눌러 도둑을 옮기세요';
+    } else if (isMyTurn(v) && v.freeRoads > 0) {
+      txt = '주황 선을 눌러 공짜 도로를 놓으세요 · ' + v.freeRoads + '개 남음';
+    } else if (isMyTurn(v) && App.build) {
+      var n = App.build === 'road' ? (v.legal.roads || []).length
+            : App.build === 'settlement' ? (v.legal.settlements || []).length
+            : App.build === 'city' ? (v.legal.cities || []).length
+            : App.build === 'knight' ? (v.legal.knightSpots || []).length
+            : App.build === 'wall' ? (v.legal.walls || []).length : 0;
+      var name = { road: '도로', settlement: '마을', city: '도시', knight: '기사', wall: '성벽' }[App.build];
+      txt = (App.build === 'road' ? '주황 선' : '주황 점') + '을 눌러 ' + EUL(name) + ' 놓으세요 · ' + n + '곳';
+    }
+    box.textContent = txt;
+    box.classList.toggle('hidden', !txt);
+  }
+
+  // 기록 접기 — 좁은 화면에서는 접어 두고 필요할 때만 편다
+  function initLogFold() {
+    var bar = $('nowBar');
+    if (!bar || bar.dataset.foldReady) return;
+    bar.dataset.foldReady = '1';
+    if (App.logOpen === undefined) {
+      try { App.logOpen = localStorage.getItem('catan.log') === 'open'; } catch (e) { App.logOpen = false; }
+    }
+    var b = el('button', 'logFold', '기록');
+    b.type = 'button';
+    b.onclick = function () {
+      App.logOpen = !App.logOpen;
+      try { localStorage.setItem('catan.log', App.logOpen ? 'open' : 'shut'); } catch (e) {}
+      paintLogFold();
+    };
+    bar.appendChild(b);
+    paintLogFold();
+  }
+  function paintLogFold() {
+    var g = $('game'), b = document.querySelector('.logFold');
+    if (!g) return;
+    g.classList.toggle('logOpen', !!App.logOpen);
+    if (b) b.classList.toggle('on', !!App.logOpen);
+  }
+
   function renderPhaseBar(v) {
     var bar = $('phaseBar');
     if (!bar) return;
@@ -3077,6 +3242,7 @@
     if (App.pressing) { App.pendingRender = true; return; }
     if (App.view) {
       renderPhaseBar(App.view);
+      renderBoardHint(App.view);
       paintPlayMode(App.view);
     }
     if (App.view) {
