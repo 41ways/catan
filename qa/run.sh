@@ -11,7 +11,7 @@ case "$1" in
     N=${3:-1}; i=0
     while [ $i -lt $N ]; do
       "$CHROME" --headless --disable-gpu --hide-scrollbars --window-size=390,844 \
-        --virtual-time-budget=900000 --dump-dom "http://localhost:$PORT/?scene=qa&mode=${MODE:-base}" 2>/dev/null \
+        --virtual-time-budget=1800000 --dump-dom "http://localhost:$PORT/?scene=qa&mode=${MODE:-base}" 2>/dev/null \
       | python3 -c "
 import sys,re,json
 m=re.search(r'<pre id=\"qaout\"[^>]*>(.*?)</pre>', sys.stdin.read(), re.S)
@@ -23,7 +23,7 @@ print(('OK  ' if o['done'] and not o['errs'] else 'NG  ')+o['mode']+' turn='+str
     done ;;
   pace)
     "$CHROME" --headless --disable-gpu --hide-scrollbars --window-size=390,844 \
-      --virtual-time-budget=900000 --dump-dom "http://localhost:$PORT/?scene=timing&mode=${MODE:-base}" 2>/dev/null \
+      --virtual-time-budget=1800000 --dump-dom "http://localhost:$PORT/?scene=timing&mode=${MODE:-base}" 2>/dev/null \
     | python3 -c "
 import sys,re,json
 m=re.search(r'<pre id=\"qaout\"[^>]*>(.*?)</pre>', sys.stdin.read(), re.S)

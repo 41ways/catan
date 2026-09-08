@@ -1688,3 +1688,40 @@ html, body { overflow-x: hidden; }
   .pDo { font-size: 14px; }
   .pWhy { font-size: 11.5px; }
 }
+
+
+/* ==================== 넓은 화면 — 판을 왼쪽에 크게, 조작은 오른쪽에 ==================== */
+@media (min-width: 900px) {
+  #game {
+    display: grid; height: 100dvh; overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 25vw, 400px);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+    column-gap: 12px; padding: 0 12px 10px;
+  }
+  .top      { grid-column: 1 / -1; grid-row: 1; padding: 8px 0 0; }
+  .phaseBar { grid-column: 1 / -1; grid-row: 2; }
+  .nowBar   { grid-column: 1 / -1; grid-row: 3; }
+  .ckBar    { grid-column: 1 / -1; grid-row: 4; }
+
+  .boardBox { grid-column: 1; grid-row: 5; min-height: 0; }
+  #board    { max-height: none; }
+
+  /* 손패와 조작판을 따로 놓기 위해 감싼 틀을 없앤 것처럼 다룬다 */
+  .bottom { display: contents; }
+  .hand   { grid-column: 1; grid-row: 6; padding: 8px 0 2px; }
+  .panel  { grid-column: 2; grid-row: 5; min-height: 0; overflow-y: auto; align-self: stretch; }
+  .log    { grid-column: 2; grid-row: 6; margin-top: 8px; max-height: 92px; }
+
+  /* 좁은 칸에 맞춰 짓기 칸은 두 줄로 */
+  .buildRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .buildRow.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pMain { position: sticky; bottom: -1px; z-index: 2; background: var(--panel); padding: 10px 0 2px; box-shadow: 0 -10px 12px -8px rgba(0,0,0,0.2); }
+  .bcard { padding: 9px 7px; }
+  .zoomBtn { width: 34px; height: 34px; }
+}
+
+/* 아주 넓은 화면에서는 조작판을 조금 더 넉넉히 */
+@media (min-width: 1500px) {
+  #game { grid-template-columns: minmax(0, 1fr) 420px; }
+  .buildRow, .buildRow.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

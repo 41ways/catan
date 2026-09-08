@@ -3201,7 +3201,10 @@
     if (!bar || bar.dataset.foldReady) return;
     bar.dataset.foldReady = '1';
     if (App.logOpen === undefined) {
-      try { App.logOpen = localStorage.getItem('catan.log') === 'open'; } catch (e) { App.logOpen = false; }
+      var saved = null;
+      try { saved = localStorage.getItem('catan.log'); } catch (e) {}
+      // 넓은 화면에는 자리가 있으니 기록을 펴 두고, 좁은 화면에서는 접어 둔다
+      App.logOpen = saved ? saved === 'open' : window.innerWidth >= 900;
     }
     var b = el('button', 'logFold', '기록');
     b.type = 'button';
