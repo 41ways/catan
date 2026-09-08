@@ -1547,3 +1547,28 @@ html, body { overflow-x: hidden; }
   .tRow .tHave { display: none; }
   .tGive.wide .tRow, .tWant.wide .tRow { gap: 3px; }
 }
+
+/* 버리려고 고른 카드 — 한눈에 보이게 */
+.cardSlot.sel .cardCount { background: var(--bad); color: #fff; box-shadow: 0 0 0 2px rgba(192,52,43,0.28); }
+.cardSlot.sel .resCard { outline: 2.5px solid var(--bad); outline-offset: -1px; filter: brightness(0.94) saturate(0.9); }
+.cardSlot.sel::after {
+  content: '🗑'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  font-size: 13px; background: var(--bad); color: #fff; border-radius: 999px;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35); z-index: 3;
+}
+.cardSlot { position: relative; }
+
+/* 작은 버튼은 보이는 크기는 그대로 두고 누르는 범위만 넓힌다 */
+.trkBtn { position: relative; }
+.trkBtn::after { content: ''; position: absolute; inset: -9px -7px; }
+.devchip { position: relative; }
+.devchip::after { content: ''; position: absolute; inset: -6px -4px; }
+
+/* 긴 시트(규칙 등)에서 닫기 버튼을 바닥에 붙여 둔다 — 끝까지 스크롤하지 않아도 닫을 수 있게 */
+.sheet.tall > .row:last-child {
+  position: sticky; bottom: 0; z-index: 2;
+  background: var(--panel); padding: 10px 0 2px; margin-top: 6px;
+  box-shadow: 0 -10px 12px -8px rgba(0,0,0,0.22);
+}
+@media (max-width: 560px) { .sheet.tall > .row:last-child button { font-size: 14px; padding: 12px 6px; } }
