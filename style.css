@@ -677,7 +677,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 
 /* ---------------- 손패 — 부채처럼 펼친 카드 ---------------- */
 
-.hand { display: flex; justify-content: center; padding: 6px 0 2px; }
+.hand { display: flex; flex-direction: column; align-items: center; padding: 6px 0 2px; }
 .handCards {
   position: relative; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
   justify-content: center; max-width: 100%;
@@ -1572,3 +1572,14 @@ html, body { overflow-x: hidden; }
   box-shadow: 0 -10px 12px -8px rgba(0,0,0,0.22);
 }
 @media (max-width: 560px) { .sheet.tall > .row:last-child button { font-size: 14px; padding: 12px 6px; } }
+
+/* 발전·진보카드 칩은 글자가 접히지 않게 제 폭을 지킨다 */
+.handCards .devchip { flex: 0 0 auto; white-space: nowrap; }
+
+/* 발전·진보카드 칩 줄 — 자원 카드 아래 */
+.handChips { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.handChips:empty { display: none; }
+@media (max-width: 560px) {
+  .handChips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 0 10px 2px; scrollbar-width: none; }
+  .handChips::-webkit-scrollbar { display: none; }
+}

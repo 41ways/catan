@@ -2260,6 +2260,10 @@
       box.appendChild(warn);
     }
 
+    // 발전·진보카드 칩은 자원 카드와 줄을 나눈다 — 서로 밀어내지 않게
+    var chipRow = el('div', 'handChips');
+    outer.appendChild(chipRow);
+    box = chipRow;
     if (isExt(v)) {
       (p.cardList || []).forEach(function (c) {
         var b = el('button', 'devchip trk-' + c.track, CK.CARD_NAME[c.type]);
