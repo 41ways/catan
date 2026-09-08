@@ -1725,3 +1725,6 @@ html, body { overflow-x: hidden; }
   #game { grid-template-columns: minmax(0, 1fr) 420px; }
   .buildRow, .buildRow.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* 저작권 고지 — 타이틀 아래, 자세히 봐야 보일 만큼만 */
+.legal{margin:26px auto 0;max-width:36em;font-size:10.5px;line-height:1.75;color:var(--faint);opacity:.7;text-align:center;word-break:keep-all}
