@@ -2888,16 +2888,19 @@
   }
 
   function openBankTrade(v, p) {
+    var all = cardsOf(v);
+    var rateOf = function (c) { return isExt(v) ? CK.tradeRate(p, c) : R.tradeRate(p, c); };
     var opts = [];
-    RES.forEach(function (c) {
-      var rate = R.tradeRate(p, c);
+    all.forEach(function (c) {
+      var rate = rateOf(c);
       if (p.res[c] >= rate) opts.push({ c: c, rate: rate });
     });
-    openPick('은행 교환 — 무엇을 낼까요?', '항구가 있으면 교환비가 좋아집니다.', opts.map(function (o) {
-      return { label: resName(o.c) + ' ' + o.rate + '장 내기', res: o.c, fn: function () {
-        openPick('무엇을 받을까요?', '', RES.filter(function (c) { return c !== o.c && v.bank[c] > 0; }).map(function (c) {
-          return { label: resName(c) + ' 1장 (은행에 ' + v.bank[c] + ')', res: c, fn: function () { act('bankTrade', [o.c, c]); } };
-        }));
+    openPick('은행 교환 — 무엇을 낼까요?', '항구가 있으면 교환비가 좋아집니다. 지금 낼 수 있는 것만 보입니다.', opts.map(function (o) {
+      return { label: resName(o.c) + ' ' + o.rate + '장 내기 (가진 것 ' + p.res[o.c] + ')', res: o.c, fn: function () {
+        openPick('무엇을 받을까요?', resName(o.c) + ' ' + o.rate + '장을 내고 한 장을 받습니다.',
+          all.filter(function (c) { return c !== o.c && v.bank[c] > 0; }).map(function (c) {
+            return { label: resName(c) + ' 1장 (은행에 ' + v.bank[c] + ')', res: c, fn: function () { act('bankTrade', [o.c, c]); } };
+          }));
       } };
     }));
   }
@@ -2908,24 +2911,32 @@
     $('tradeModal').classList.remove('hidden');
   }
   function renderTradeForm(v, p) {
+    var all = cardsOf(v);
     ['tGive', 'tWant'].forEach(function (side) {
       var box = $(side);
       box.innerHTML = '';
-      RES.forEach(function (c) {
-        var row = el('div', 'tRow');
+      box.classList.toggle('wide', all.length > 5);
+      all.forEach(function (c) {
+        var give = side === 'tGive';
+        var have = p.res[c] || 0;
+        var row = el('div', 'tRow' + (give && !have ? ' none' : ''));
         row.appendChild(rchip(c));
         var minus = el('button', null, '−');
         var cnt = el('span', 'cnt', String(App[side][c] || 0));
         var plus = el('button', null, '+');
-        var max = side === 'tGive' ? p.res[c] : 19;
+        var max = give ? have : 19;
+        var now = App[side][c] || 0;
+        minus.disabled = now === 0;
+        plus.disabled = now >= max || (give && App.tWant[c]) || (!give && App.tGive[c]);
         minus.onclick = function () { App[side][c] = Math.max(0, (App[side][c] || 0) - 1); renderTradeForm(v, p); };
         plus.onclick = function () {
           if ((App[side][c] || 0) >= max) return;
-          if (side === 'tGive' && App.tWant[c]) return;
-          if (side === 'tWant' && App.tGive[c]) return;
+          if (give && App.tWant[c]) return;
+          if (!give && App.tGive[c]) return;
           App[side][c] = (App[side][c] || 0) + 1; renderTradeForm(v, p);
         };
         row.appendChild(minus); row.appendChild(cnt); row.appendChild(plus);
+        if (give) row.appendChild(el('span', 'tHave', have + '장'));
         box.appendChild(row);
       });
     });

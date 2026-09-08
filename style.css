@@ -1537,3 +1537,13 @@ html, body { overflow-x: hidden; }
   .trkPips i { width: 4px; height: 9px; }
   .trkBtn { font-size: 9.5px; padding: 2px 4px; white-space: nowrap; }
 }
+
+/* 거래 제안 — 가진 수와 한도를 눈에 보이게 */
+.tRow .tHave { font-size: 11px; color: var(--faint); min-width: 2.4em; }
+.tRow.none { opacity: 0.45; }
+.tRow button:disabled { opacity: 0.3; }
+.tGive.wide .tRow, .tWant.wide .tRow { padding: 2px 0; }
+@media (max-width: 560px) {
+  .tRow .tHave { display: none; }
+  .tGive.wide .tRow, .tWant.wide .tRow { gap: 3px; }
+}
