@@ -2313,14 +2313,19 @@
     }
     if (type === 'plenty') {
       var first = null;
-      openPick('자원 발견 — 첫 장', '은행에서 두 장을 가져옵니다.', RES.map(function (c) {
-        return { label: resName(c), res: c, fn: function () {
-          first = c;
-          openPick('자원 발견 — 둘째 장', '', RES.map(function (c2) {
-            return { label: resName(c2), res: c2, fn: function () { act('playDev', ['plenty', [first, c2]]); } };
-          }));
-        } };
-      }));
+      // 은행에 남은 것만 고를 수 있게, 몇 장 남았는지도 보여 준다
+      var left = function (c) { return (v.bank && v.bank[c] !== undefined) ? v.bank[c] : 19; };
+      openPick('자원 발견 — 첫 장', '은행에서 두 장을 가져옵니다.',
+        RES.filter(function (c) { return left(c) > 0; }).map(function (c) {
+          return { label: resName(c) + ' (은행에 ' + left(c) + ')', res: c, fn: function () {
+            first = c;
+            openPick('자원 발견 — 둘째 장', resName(first) + '을(를) 골랐습니다. 한 장 더 고르세요.',
+              RES.filter(function (c2) { return left(c2) - (c2 === first ? 1 : 0) > 0; }).map(function (c2) {
+                return { label: resName(c2) + ' (은행에 ' + (left(c2) - (c2 === first ? 1 : 0)) + ')', res: c2,
+                         fn: function () { act('playDev', ['plenty', [first, c2]]); } };
+              }));
+          } };
+        }));
     }
   }
 
