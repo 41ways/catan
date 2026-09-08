@@ -363,9 +363,9 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 .devchip.fresh { opacity: 0.45; cursor: default; }
 .panel { display: flex; flex-direction: column; gap: 9px; }
 .panelMsg { font-size: 14px; margin: 0; min-height: 21px; }
-.buildRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-.buildRow.five { grid-template-columns: repeat(5, 1fr); }
-@media (max-width: 560px) { .buildRow.five { grid-template-columns: repeat(3, 1fr); } }
+.buildRow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.buildRow.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 560px) { .buildRow.five { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* 짓기 버튼 — 이름·점수·재료가 한 몸이다. 모자란 재료는 흐리게 */
 .bcard {
   display: flex; flex-direction: column; gap: 5px; align-items: center;
@@ -1426,3 +1426,60 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
   .topRight { flex: 0 0 auto; }
   #btnHelp { white-space: nowrap; padding: 5px 8px; font-size: 12px; align-self: flex-start; }
 }
+
+
+/* ==================== 조작판 새 단장 ==================== */
+.panel { gap: 0; }
+.pHead {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.pDot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 2px rgba(0,0,0,0.12); }
+.pWho { font-size: 13px; font-weight: 800; color: var(--ink); }
+.pHead.mine .pWho { color: var(--gold); }
+.pPhase {
+  margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--dim); background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 2px 9px;
+}
+.pDo { margin: 0; font-size: 16px; line-height: 1.5; font-weight: 700; color: var(--ink); }
+.pDo b { color: var(--gold); }
+.pWhy { margin: 4px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--dim); }
+.pWhy b { color: var(--ink); font-weight: 700; }
+
+/* 지을 것 구역 머리 */
+.pSec {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 6px;
+  font-size: 11.5px; font-weight: 800; color: var(--faint); letter-spacing: 0.04em;
+}
+.pSec::after { content: ''; flex: 1; height: 1px; background: var(--line); order: 3; }
+.pSecNum { order: 4; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* 거래 줄 */
+.pTrade { display: flex; gap: 7px; margin-top: 10px; }
+.pGhost {
+  flex: 1; background: var(--panel2); border: 1px solid var(--line); color: var(--ink);
+  border-radius: 10px; padding: 10px 8px; font-size: 13px; font-weight: 700; box-shadow: none;
+}
+.pGhost:hover { border-color: var(--gold); }
+
+/* 주 버튼 — 화면에 하나만, 크게 */
+.pMain { display: flex; gap: 8px; margin-top: 12px; }
+.pBig { flex: 1; padding: 13px; font-size: 16px; font-weight: 800; border-radius: 12px; letter-spacing: 0.02em; }
+.pBig:disabled { opacity: 0.45; }
+.pBig.warn { background: linear-gradient(180deg, #d98a3e, #b4671f); }
+.pMain .pGhost { flex: 0 0 auto; padding: 13px 18px; }
+
+@media (max-width: 560px) {
+  .pDo { font-size: 15px; }
+  .pWhy { font-size: 12px; }
+  .pBig { padding: 14px; font-size: 16px; }
+}
+
+.panel { overflow: hidden; }
+.bcard { overflow: hidden; }
+.bcard .bcost { flex-wrap: wrap; }
+
+/* 이름표 줄이 화면을 밀어내지 않게 — 넘치면 그 안에서만 옆으로 스크롤 */
+.top .players { flex: 1 1 auto; min-width: 0; }
+html, body { overflow-x: hidden; }

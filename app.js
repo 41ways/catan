@@ -2545,74 +2545,243 @@
     });
   }
 
+  /* ---------------- 조작판 ----------------
+     한 화면에 세 가지만 말한다.
+       1) 지금 누구 차례이고 무슨 단계인가   (머리줄)
+       2) 지금 반드시 해야 할 일 하나        (큰 글씨 + 주 버튼)
+       3) 지금 할 수 있는 일                 (지을 수 있는 것 · 거래)
+     할 수 없는 것은 아예 내보내지 않는다. */
+
+  var PHASE_TAG = {
+    order: '순서 정하기', setup: '준비', roll: '주사위 굴리기',
+    discard: '카드 버리기', robber: '도둑 옮기기', main: '짓기와 거래', over: '끝'
+  };
+
   function renderPanel(v) {
     var box = $('panel');
     box.innerHTML = '';
-    var msg = el('p', 'panelMsg');
-    box.appendChild(msg);
     var p = meOf(v);
     var myTurn = isMyTurn(v);
     var res = p && p.res ? p.res : { b: 0, l: 0, w: 0, g: 0, o: 0 };
-    var buildable = myTurn && v.phase === 'main' && !v.trade && v.freeRoads === 0 && !(p && p.out);
 
-    /* 짓기 블록 — 항상 자리를 지키고, 될 때만 켜진다 */
-    var buildRow = el('div', 'buildRow' + (isExt(v) ? ' five' : ''));
-    box.appendChild(buildRow);
+    /* ── 머리줄: 누구 차례 · 무슨 단계 ── */
+    var actor = v.phase === 'setup' ? playerIn(v, v.setup.who)
+              : v.phase === 'order' ? null : v.players[v.turn];
+    var mineNow = v.phase === 'setup' ? (v.setup && v.setup.who === v.me)
+                : v.phase === 'order' ? true : myTurn;
+    var head = el('div', 'pHead' + (mineNow ? ' mine' : ''));
+    if (actor) {
+      var dot = el('i', 'pDot');
+      dot.style.background = PCOLOR[actor.color] || '';
+      head.appendChild(dot);
+    }
+    head.appendChild(el('b', 'pWho', v.phase === 'order' ? '모두' : (actor ? (actor.id === v.me ? '내 차례' : actor.name + '의 차례') : '')));
+    head.appendChild(el('span', 'pPhase', PHASE_TAG[v.phase] || ''));
+    box.appendChild(head);
+
+    /* ── 지시문 · 부연 ── */
+    var doLine = el('p', 'pDo');
+    var whyLine = el('p', 'pWhy');
+    box.appendChild(doLine);
+    box.appendChild(whyLine);
+    function say2(main2, sub) {
+      doLine.innerHTML = main2;
+      whyLine.innerHTML = sub || '';
+      whyLine.classList.toggle('hidden', !sub);
+    }
+
+    /* ── 주 버튼: 화면에 하나만 ── */
+    var mainRow = el('div', 'pMain');
+    box.appendChild(mainRow);
+    function primary(label, fn, disabled, tone) {
+      var b = el('button', 'primary pBig' + (tone ? ' ' + tone : ''), label);
+      if (disabled) b.disabled = true;
+      b.onclick = fn;
+      mainRow.appendChild(b);
+      return b;
+    }
+    function ghost(label, fn) {
+      var b = el('button', 'pGhost', label);
+      b.onclick = fn;
+      mainRow.appendChild(b);
+      return b;
+    }
+
+    if (v.phase === 'over') { say2('판이 끝났습니다.'); return; }
+    if (p && p.out) { say2('판에서 나갔습니다.'); return; }
+
+    /* ── 거래 제안이 떠 있으면 그것부터 ── */
+    if (v.trade) { renderTrade(v, doLine, mainRow, function (label, fn, isP, dis) {
+      return isP ? primary(label, fn, dis) : ghost(label, fn);
+    }); return; }
+
+    /* ── 순서 정하기 ── */
+    if (v.phase === 'order') {
+      var needRoll = (!v.order.tie || v.order.tie.indexOf(v.me) >= 0) && v.order.rolls[v.me] === undefined;
+      say2(v.order.tie ? '동점입니다 — 다시 굴리세요.' : (needRoll ? '주사위를 굴리세요.' : '다른 사람이 굴리는 것을 기다립니다.'),
+        '가장 높은 눈을 낸 사람이 첫 번째로 마을을 놓습니다.');
+      var list = el('div', 'orderList');
+      v.players.forEach(function (q) {
+        if (q.out) return;
+        var row = el('span', 'orderRow');
+        var d2 = el('i', 'orderDot');
+        d2.style.background = PCOLOR[q.color];
+        row.appendChild(d2);
+        row.appendChild(el('b', null, q.name));
+        var rr = v.order.rolls[q.id];
+        row.appendChild(el('span', 'orderVal', rr ? (rr.d[0] + ' + ' + rr.d[1] + ' = ' + rr.sum) : '…'));
+        if (v.order.tie && v.order.tie.indexOf(q.id) >= 0) row.classList.add('tie');
+        list.appendChild(row);
+      });
+      box.insertBefore(list, mainRow);
+      if (needRoll) primary('🎲  주사위 굴리기', function () { act('rollForOrder', []); });
+      return;
+    }
+
+    /* ── 마을·도로 놓기 ── */
+    if (v.phase === 'setup') {
+      if (mineNow) {
+        var second = v.setup.idx >= v.players.length;
+        var what = (isExt(v) && second) ? '도시' : '마을';
+        if (v.setup.sub === 'settlement') {
+          say2('판에서 <b>' + EUL(what) + ' 놓을 자리</b>를 누르세요.',
+            second ? '두 바퀴째입니다. 이번에 놓는 ' + what + ' 둘레의 자원을 바로 받습니다.'
+                   : '주황 점이 놓을 수 있는 자리입니다. 마을끼리는 두 변 이상 떨어져야 합니다.');
+        } else {
+          say2('방금 놓은 ' + what + '에 <b>이을 도로</b>를 누르세요.',
+            '주황 굵은 선이 놓을 수 있는 자리입니다.');
+        }
+      } else {
+        say2(GA(actor ? actor.name : '?') + ' 자리를 고르는 중…', '차례가 오면 알려 드립니다.');
+      }
+      return;
+    }
+
+    /* ── 7 — 카드 버리기 ── */
+    if (v.phase === 'discard') {
+      var need = v.mustDiscard[v.me];
+      if (need) {
+        say2('손패에서 <b>' + need + '장</b>을 골라 버리세요.',
+          '7이 나왔습니다. 8장 이상 든 사람은 절반을 버립니다. 아래 카드를 눌러 고르세요.');
+        primary('버리기 ' + App.discardSel.length + ' / ' + need,
+          function () { act('discard', [App.discardSel.slice()]); App.discardSel = []; },
+          App.discardSel.length !== need, 'warn');
+      } else {
+        var names = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid).name; });
+        say2(GA(names.join(', ')) + ' 카드를 버리는 중…', '나는 버릴 것이 없습니다.');
+      }
+      return;
+    }
+
+    /* ── 도둑 ── */
+    if (v.phase === 'robber') {
+      if (myTurn) say2('판에서 <b>도둑을 옮길 타일</b>을 누르세요.',
+        '옮긴 타일에 마을이 닿은 사람에게서 카드를 한 장 빼앗습니다. 빗금 친 지금 자리는 고를 수 없습니다.');
+      else say2(GA(actor ? actor.name : '?') + ' 도둑을 옮기는 중…', '');
+      return;
+    }
+
+    /* ── 남의 차례 ── */
+    if (!myTurn) {
+      say2(actor ? (actor.name + '의 차례입니다.') : '', '지켜보는 차례입니다. 위쪽 안내줄에 무슨 일이 일어나는지 나옵니다.');
+      return;
+    }
+
+    /* ── 내 차례: 주사위 ── */
+    if (v.phase === 'roll') {
+      say2('<b>주사위</b>를 굴리세요.', '나온 눈과 같은 숫자 타일 둘레에 마을이 있으면 자원을 받습니다.');
+      primary('🎲  주사위 굴리기', function () { act('roll', []); });
+      return;
+    }
+
+    /* ── 내 차례: 공짜 도로 ── */
+    if (v.freeRoads > 0) {
+      if (v.legal.roads.length && p.left.road) {
+        say2('공짜 도로 <b>' + v.freeRoads + '개</b>를 놓으세요.', '판에서 주황 굵은 선을 누르세요.');
+      } else {
+        say2('놓을 자리가 없어 공짜 도로는 넘어갑니다.', '');
+        primary('차례 넘기기', function () { act('endTurn', []); });
+      }
+      return;
+    }
+
+    /* ── 내 차례: 판에서 무언가를 고르는 중 ── */
+    var picking = { road: ['도로를 놓을 변', '주황 굵은 선이 놓을 수 있는 자리입니다.'],
+                    settlement: ['마을을 놓을 꼭짓점', '주황 점이 놓을 수 있는 자리입니다.'],
+                    city: ['도시로 올릴 내 마을', '내 마을 위에 표시가 뜹니다.'],
+                    knight: ['기사를 놓을 꼭짓점', '내 도로가 닿은 빈 자리에만 놓을 수 있습니다.'],
+                    wall: ['성벽을 쌓을 내 도시', '마을에는 쌓을 수 없습니다.'] }[App.build];
+    if (picking) {
+      say2('판에서 <b>' + picking[0] + '</b>을(를) 누르세요.', picking[1]);
+      ghost('그만두기', function () { App.build = null; render(); });
+      return;
+    }
+    if (App.knightSel !== null && App.knightSel !== undefined) {
+      say2('<b>기사가 갈 자리</b>나 밀어낼 상대 기사를 누르세요.', '');
+      ghost('그만두기', function () { App.knightSel = null; render(); });
+      return;
+    }
+    if (App.pickVert || App.pickHex || App.pickEdge) {
+      say2('<b>진보카드</b> — 판에서 대상을 고르세요.', '');
+      return;
+    }
+
+    /* ── 내 차례: 짓기와 거래 ── */
+    var buildable = !(p && p.out);
     function afford(cost) {
-      var need = {};
-      cost.forEach(function (c) { need[c] = (need[c] || 0) + 1; });
-      for (var c in need) if (res[c] < need[c]) return false;
+      var need2 = {};
+      cost.forEach(function (c) { need2[c] = (need2[c] || 0) + 1; });
+      for (var c in need2) if (res[c] < need2[c]) return false;
       return true;
     }
-    // 못 누르는 버튼도 눌리게 두고, 왜 안 되는지 알려준다
-    function bbtn(label, pts, cost, usable, onClick, mode, why) {
+    var canRoad = buildable && afford(['b', 'l']) && p.left.road > 0 && v.legal.roads.length > 0;
+    var canSett = buildable && afford(['b', 'l', 'w', 'g']) && p.left.settlement > 0 && v.legal.settlements.length > 0;
+    var canCity = buildable && afford(['g', 'g', 'o', 'o', 'o']) && p.left.city > 0 && v.legal.cities.length > 0;
+    var canDev = buildable && afford(['w', 'g', 'o']) && v.devLeft > 0;
+    var canKnight = false, canWall = false;
+    if (isExt(v)) {
+      canKnight = buildable && afford(['o', 'w']) && v.legal.knightSpots.length &&
+        (function () { var n = 0; (p.knights || []).forEach(function (k) { if (k.rank === 1) n++; }); return n < 2; })();
+      canWall = buildable && afford(['b', 'b']) && v.legal.walls.length && p.walls < CK.WALL_MAX;
+    }
+    var canCount = (canRoad ? 1 : 0) + (canSett ? 1 : 0) + (canCity ? 1 : 0) +
+                   (isExt(v) ? (canKnight ? 1 : 0) + (canWall ? 1 : 0) : (canDev ? 1 : 0));
+
+    say2('짓거나 거래한 뒤 <b>차례를 넘기세요</b>.',
+      canCount ? ('지금 지을 수 있는 것이 <b>' + canCount + '가지</b> 있습니다.')
+               : '지을 수 있는 것이 없습니다. 거래로 자원을 맞춰 보세요.');
+
+    // 지을 것 고르기
+    var sec = el('div', 'pSec');
+    sec.appendChild(el('span', 'pSecName', '지을 것'));
+    sec.appendChild(el('span', 'pSecNum', canCount + ' / ' + (isExt(v) ? 5 : 4)));
+    box.insertBefore(sec, mainRow);
+    var buildRow = el('div', 'buildRow' + (isExt(v) ? ' five' : ''));
+    box.insertBefore(buildRow, mainRow);
+
+    function bbtn(label, pts, cost, usable, onClick, mode, why2) {
       var b = el('button', 'bcard');
-      var head = el('span', 'bhead');
-      head.appendChild(el('span', 'bname', label));
-      head.appendChild(el('span', 'bpts', pts));
-      b.appendChild(head);
+      var h2 = el('span', 'bhead');
+      h2.appendChild(el('span', 'bname', label));
+      h2.appendChild(el('span', 'bpts', pts));
+      b.appendChild(h2);
       var cs = el('span', 'bcost');
       var have = {};
-      RES.forEach(function (c) { have[c] = res[c]; });
+      cardsOf(v).forEach(function (c) { have[c] = res[c]; });
       cost.forEach(function (c) {
         var chip = rchip(c);
-        if (have[c] > 0) have[c]--;        // 이 장은 감당된다
-        else chip.classList.add('miss');   // 이 장이 모자라다
+        if (have[c] > 0) have[c]--;
+        else chip.classList.add('miss');
         cs.appendChild(chip);
       });
       b.appendChild(cs);
       if (usable) { b.classList.add('can'); b.onclick = onClick; }
-      else {
-        b.classList.add('off');
-        b.onclick = function () { toast(why || '지금은 지을 수 없습니다.'); };
-      }
+      else { b.classList.add('off'); b.onclick = function () { toast(why2 || '지금은 지을 수 없습니다.'); }; }
       if (mode && App.build === mode) b.classList.add('on');
       buildRow.appendChild(b);
       return b;
     }
-    function whyKnight(v2, p2) {
-      if (!myTurn) return '내 차례에만 놓을 수 있습니다.';
-      if (v2.phase === 'roll') return '먼저 주사위를 굴리세요.';
-      var n = 0;
-      (p2.knights || []).forEach(function (k) { if (k.rank === 1) n++; });
-      if (n >= 2) return '하급 기사는 둘까지입니다. 하나를 승급시키면 더 놓을 수 있습니다.';
-      if (!v2.legal.knightSpots.length) return '내 도로가 닿은 빈 꼭짓점이 없습니다. 도로를 더 이어 보세요.';
-      return '자원이 모자랍니다 — 철 1 · 양 1이 필요합니다.';
-    }
-    function whyWall(v2, p2) {
-      if (!myTurn) return '내 차례에만 쌓을 수 있습니다.';
-      if (v2.phase === 'roll') return '먼저 주사위를 굴리세요.';
-      if (p2.walls >= CK.WALL_MAX) return '성벽은 3개까지입니다.';
-      if (!v2.legal.walls.length) return '성벽을 쌓을 도시가 없습니다. (마을에는 못 쌓습니다)';
-      return '자원이 모자랍니다 — 흙 2장이 필요합니다.';
-    }
-
-    // 왜 못 짓는지 한 줄로
     function why(kind) {
-      if (!myTurn) return '내 차례에만 지을 수 있습니다.';
-      if (v.phase === 'roll') return '먼저 주사위를 굴리세요.';
-      if (v.phase !== 'main') return '지금은 지을 때가 아닙니다.';
-      if (v.trade) return '먼저 거래 제안을 정리하세요.';
       if (kind === 'dev') {
         if (!v.devLeft) return '발전 카드가 다 떨어졌습니다.';
         return '자원이 모자랍니다 — 양 1 · 밀 1 · 철 1이 필요합니다.';
@@ -2620,12 +2789,12 @@
       if (kind === 'road') {
         if (!p.left.road) return '도로 말 15개를 다 썼습니다.';
         if (!v.legal.roads.length) return '이어 놓을 자리가 없습니다.';
-        return '자원이 모자랍니다 — 벽돌 1 · 나무 1이 필요합니다.';
+        return '자원이 모자랍니다 — ' + (isExt(v) ? '흙' : '벽돌') + ' 1 · 나무 1이 필요합니다.';
       }
       if (kind === 'settlement') {
         if (!p.left.settlement) return '마을 말 5개를 다 썼습니다. 하나를 도시로 올리면 말이 돌아옵니다.';
         if (!v.legal.settlements.length) return '지을 자리가 없습니다 — 도로를 더 이어서 빈 꼭짓점을 만들어야 합니다. (마을끼리는 두 변 이상 떨어져야 합니다)';
-        return '자원이 모자랍니다 — 벽돌·나무·양·밀이 한 장씩 필요합니다.';
+        return '자원이 모자랍니다 — ' + (isExt(v) ? '흙' : '벽돌') + '·나무·양·밀이 한 장씩 필요합니다.';
       }
       if (kind === 'city') {
         if (!p.left.city) return '도시 말 4개를 다 썼습니다.';
@@ -2634,155 +2803,55 @@
       }
       return '지금은 지을 수 없습니다.';
     }
-    var canRoad = buildable && afford(['b', 'l']) && p.left.road > 0 && v.legal.roads.length > 0;
-    var canSett = buildable && afford(['b', 'l', 'w', 'g']) && p.left.settlement > 0 && v.legal.settlements.length > 0;
-    var canCity = buildable && afford(['g', 'g', 'o', 'o', 'o']) && p.left.city > 0 && v.legal.cities.length > 0;
-    var canDev = buildable && afford(['w', 'g', 'o']) && v.devLeft > 0;
+    function whyKnight() {
+      var n = 0;
+      (p.knights || []).forEach(function (k) { if (k.rank === 1) n++; });
+      if (n >= 2) return '하급 기사는 둘까지입니다. 하나를 승급시키면 더 놓을 수 있습니다.';
+      if (!v.legal.knightSpots.length) return '내 도로가 닿은 빈 꼭짓점이 없습니다. 도로를 더 이어 보세요.';
+      return '자원이 모자랍니다 — 철 1 · 양 1이 필요합니다.';
+    }
+    function whyWall() {
+      if (p.walls >= CK.WALL_MAX) return '성벽은 3개까지입니다.';
+      if (!v.legal.walls.length) return '성벽을 쌓을 도시가 없습니다. (마을에는 못 쌓습니다)';
+      return '자원이 모자랍니다 — 흙 2장이 필요합니다.';
+    }
     function modeToggle(mode) {
       return function () { App.build = App.build === mode ? null : mode; render(); };
-    }
-    // 켜 둔 모드가 더 이상 불가능하면 조용히 푼다
-    if ((App.build === 'road' && !canRoad) || (App.build === 'settlement' && !canSett) ||
-        (App.build === 'city' && !canCity)) {
-      App.build = null;
     }
     bbtn('도로', '0점', ['b', 'l'], canRoad, modeToggle('road'), 'road', why('road'));
     bbtn('마을', '1점', ['b', 'l', 'w', 'g'], canSett, modeToggle('settlement'), 'settlement', why('settlement'));
     bbtn('도시', '2점', ['g', 'g', 'o', 'o', 'o'], canCity, modeToggle('city'), 'city', why('city'));
     if (isExt(v)) {
-      var canKnight = buildable && afford(['o', 'w']) && v.legal.knightSpots.length &&
-        (function () {
-          var n = 0;
-          (p.knights || []).forEach(function (k) { if (k.rank === 1) n++; });
-          return n < 2;
-        })();
-      var canWall = buildable && afford(['b', 'b']) && v.legal.walls.length && p.walls < CK.WALL_MAX;
       bbtn('기사', '방어', ['o', 'w'], canKnight, function () {
-        App.build = App.build === 'knight' ? null : 'knight';
-        toast('기사를 놓을 자리를 판에서 누르세요.');
-        render();
-      }, 'knight', whyKnight(v, p));
+        App.build = App.build === 'knight' ? null : 'knight'; render();
+      }, 'knight', whyKnight());
       bbtn('성벽', '손패+2', ['b', 'b'], canWall, function () {
-        App.build = App.build === 'wall' ? null : 'wall';
-        toast('성벽을 쌓을 내 도시를 누르세요.');
-        render();
-      }, 'wall', whyWall(v, p));
+        App.build = App.build === 'wall' ? null : 'wall'; render();
+      }, 'wall', whyWall());
     } else {
       bbtn('발전 카드', '?점', ['w', 'g', 'o'], canDev, function () { act('buyDev', []); }, null, why('dev'));
     }
-    box.appendChild(el('p', 'panelFoot', isExt(v)
-      ? '수도 2점 · 최장 교역로 2점 · 야만족을 막아내면 수호자 1점. 13점을 먼저 넘기면 이깁니다.'
-      : '최장 교역로 2점 · 최강 기사단 2점 — 더 잘한 사람이 나오면 넘어갑니다.'));
 
-    var acts = el('div', 'acts');
-    box.appendChild(acts);
-    function btn(label, fn, primary, disabled) {
-      var b = el('button', primary ? 'primary' : null, label);
-      if (disabled) b.disabled = true;
-      b.onclick = fn;
-      acts.appendChild(b);
-      return b;
-    }
-
-    if (v.phase === 'over') { msg.textContent = '판이 끝났습니다.'; return; }
-    if (p && p.out) { msg.textContent = '판에서 나갔습니다.'; return; }
-
-    // 거래 제안이 떠 있으면 최우선으로 보여준다
-    if (v.trade) { renderTrade(v, msg, acts, btn); return; }
-
-    if (v.phase === 'order') {
-      var mineNeed = (!v.order.tie || v.order.tie.indexOf(v.me) >= 0) && v.order.rolls[v.me] === undefined;
-      msg.innerHTML = v.order.tie
-        ? '<b>동점</b>이라 다시 굴립니다.'
-        : '누가 먼저 놓을지 <b>주사위</b>로 정합니다. 가장 높은 눈이 첫 번째입니다.';
-      var res = el('div', 'orderList');
-      v.players.forEach(function (q) {
-        if (q.out) return;
-        var row = el('span', 'orderRow');
-        var dot = el('i', 'orderDot');
-        dot.style.background = PCOLOR[q.color];
-        row.appendChild(dot);
-        row.appendChild(el('b', null, q.name));
-        var rr = v.order.rolls[q.id];
-        row.appendChild(el('span', 'orderVal', rr ? (rr.d[0] + ' + ' + rr.d[1] + ' = ' + rr.sum) : '…'));
-        if (v.order.tie && v.order.tie.indexOf(q.id) >= 0) row.classList.add('tie');
-        res.appendChild(row);
-      });
-      box.appendChild(res);
-      if (mineNeed) btn('주사위 굴리기', function () { act('rollForOrder', []); }, true);
-      return;
-    }
-
-    if (v.phase === 'setup') {
-      if (myTurn) {
-        var second = v.setup.idx >= v.players.length;
-        var what = (isExt(v) && second) ? '도시' : '마을';
-        msg.innerHTML = v.setup.sub === 'settlement'
-          ? '<b>' + EUL(what) + ' 놓을 자리</b>를 판에서 누르세요.' + (second ? ' 이번 ' + what + ' 둘레의 자원을 받습니다.' : '')
-          : '방금 놓은 ' + what + '에 <b>이을 도로</b>를 누르세요.';
-      } else {
-        var who = playerIn(v, v.setup.who);
-        msg.textContent = GA(who ? who.name : '?') + ' 자리를 고르는 중…';
-      }
-      return;
-    }
-
-    if (v.phase === 'discard') {
-      var mine = v.mustDiscard[v.me];
-      if (mine) {
-        msg.innerHTML = '7이 나왔습니다. 손패에서 <b>' + mine + '장</b>을 골라 버리세요. (' + App.discardSel.length + '/' + mine + ')';
-        btn('버리기', function () { act('discard', [App.discardSel.slice()]); App.discardSel = []; }, true, App.discardSel.length !== mine);
-      } else {
-        var names = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid).name; });
-        msg.textContent = GA(names.join(', ')) + ' 버리는 중…';
-      }
-      return;
-    }
-
-    if (v.phase === 'robber') {
-      msg.innerHTML = myTurn
-        ? '<b>도둑을 옮길 타일</b>을 누르세요. 지금 자리(빗금)는 고를 수 없습니다.'
-        : GA(playerIn(v, v.players[v.turn].id).name) + ' 도둑을 옮기는 중…';
-      return;
-    }
-
-    if (!myTurn) {
-      msg.textContent = v.players[v.turn].name + '의 차례…';
-      return;
-    }
-
-    if (v.phase === 'roll') {
-      msg.innerHTML = '<b>주사위</b>를 굴리세요.';
-      btn('주사위 굴리기', function () { act('roll', []); }, true);
-      return;
-    }
-
-    // main
-    if (v.freeRoads > 0) {
-      if (v.legal.roads.length && p.left.road) {
-        msg.innerHTML = '<b>도로 건설</b> — 공짜 도로 <b>' + v.freeRoads + '개</b>가 남았습니다. 판에서 주황 점선을 누르세요.';
-      } else {
-        msg.innerHTML = '놓을 자리가 없어 공짜 도로는 넘어갑니다.';
-        btn('차례 넘기기', function () { act('endTurn', []); }, true);
-      }
-      return;
-    }
-    if (App.build === 'road') msg.innerHTML = '<b>도로를 놓을 변</b>을 누르세요.';
-    else if (App.build === 'settlement') msg.innerHTML = '<b>마을을 놓을 꼭짓점</b>을 누르세요.';
-    else if (App.build === 'city') msg.innerHTML = '<b>도시로 올릴 내 마을</b>을 누르세요.';
-    else if (App.build === 'knight') msg.innerHTML = '<b>기사를 놓을 꼭짓점</b>을 누르세요.';
-    else if (App.build === 'wall') msg.innerHTML = '<b>성벽을 쌓을 내 도시</b>를 누르세요.';
-    else if (App.knightSel !== null && App.knightSel !== undefined) msg.innerHTML = '<b>기사가 갈 자리</b>나 밀어낼 상대 기사를 누르세요.';
-    else if (App.pickVert || App.pickHex || App.pickEdge) msg.innerHTML = '<b>진보카드</b> — 판에서 대상을 고르세요.';
-    else msg.innerHTML = isExt(v)
-      ? '내 차례 — 짓거나 거래하거나, 도시를 개발하세요.'
-      : '내 차례 — 짓거나 거래하거나, 차례를 넘기세요.';
-
-    btn('은행 교환', function () { openBankTrade(v, p); }, false, !RES.some(function (c) { return res[c] >= R.tradeRate(p, c); }));
+    // 거래는 할 수 있을 때만 내놓는다
+    var canBank = cardsOf(v).some(function (c) { return res[c] >= (isExt(v) ? CK.tradeRate(p, c) : R.tradeRate(p, c)); });
     var others = v.players.filter(function (q) { return q.id !== v.me && !q.out; }).length;
-    btn('거래 제안', function () { openTradeModal(v, p); }, false, !others || !RES.some(function (c) { return res[c] > 0; }));
-    var end = btn('차례 넘기기', function () { act('endTurn', []); }, true);
-    end.classList.add('push');
+    var canOffer = others > 0 && cardsOf(v).some(function (c) { return res[c] > 0; });
+    if (canBank || canOffer) {
+      var trow = el('div', 'pTrade');
+      if (canBank) {
+        var b1 = el('button', 'pGhost', '🏦  은행 교환');
+        b1.onclick = function () { openBankTrade(v, p); };
+        trow.appendChild(b1);
+      }
+      if (canOffer) {
+        var b2 = el('button', 'pGhost', '🤝  거래 제안');
+        b2.onclick = function () { openTradeModal(v, p); };
+        trow.appendChild(b2);
+      }
+      box.insertBefore(trow, mainRow);
+    }
+
+    primary('차례 넘기기  →', function () { act('endTurn', []); });
   }
 
   /* ---------------- 거래 ---------------- */
