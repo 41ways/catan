@@ -284,7 +284,7 @@
     var wait = s.phase === 'order' ? 2900 : s.phase === 'setup' ? 1300 : s.phase === 'roll' ? 900 : 820;
     if (App.intro) wait += 700;                       // 판이 깔리는 동안은 천천히
     // 아직 중계할 줄이 남아 있으면 그만큼 늦춘다 (한 수씩 눈에 들어오게)
-    wait += Math.min(1800, App.feed.length * 380 + (App.feedBusy ? 260 : 0));
+    wait += Math.min(3200, App.feed.length * 520 + (App.feedBusy ? 320 : 0));
     App.botTimer = setTimeout(function () { botStep(need[0]); }, wait);
   }
 
@@ -662,7 +662,8 @@
     // 큰 알림이 떠 있으면 겹치지 않게 먼저 치운다
     var bn = $('bigNews');
     if (bn && !bn.classList.contains('hidden')) {
-      clearTimeout(App.bigTimer); bn.classList.add('hidden'); bn.classList.remove('out');
+      clearTimeout(App.bigTimer); clearTimeout(App.bigHideTimer);
+      bn.classList.add('hidden'); bn.classList.remove('out');
     }
     var backImg = $('crBackImg');
     if (backImg) {
@@ -719,21 +720,42 @@
     pumpFeed();
   }
 
+  // 지금 화면이 다른 안내로 차 있는가 — 겹쳐 띄우지 않기 위해
+  function overlayBusy() {
+    var ids = ['diceOverlay', 'gate', 'cardReveal', 'robberSweep'];
+    for (var i = 0; i < ids.length; i++) {
+      var e = $(ids[i]);
+      if (e && !e.classList.contains('hidden')) return true;
+    }
+    return false;
+  }
+  // 한 줄을 읽는 데 걸리는 시간 — 글자 수로 잡는다 (최소 1.2초)
+  function readTime(text, base) {
+    var n = (text || '').replace(/\s/g, '').length;
+    return Math.max(1300, base || 0, 850 + n * 75);
+  }
+
   function pumpFeed() {
     if (App.feedBusy || !App.feed.length) return;
+    // 앞선 안내를 아직 읽는 중이면 그게 끝난 뒤에
+    if (overlayBusy() || Date.now() < (App.plaqueUntil || 0)) {
+      clearTimeout(App.feedWait);
+      App.feedWait = setTimeout(pumpFeed, 220);
+      return;
+    }
     App.feedBusy = true;
     var item = App.feed.shift();
     showNow(item.icon, item.text, item.owner);
     if (item.card) showCardReveal(item.card, item.mineCard);
     else if (item.big) showBigNews(item);
-    // 밀려 있으면 조금씩 빨리 넘긴다
-    var hold = item.hold * (App.feed.length > 5 ? 0.45 : App.feed.length > 2 ? 0.7 : 1);
+    var hold = readTime(item.text, item.hold);
+    if (App.feed.length > 6) hold = Math.max(1150, hold * 0.82);   // 아주 밀렸을 때만 조금 서두른다
     clearTimeout(App.feedTimer);
     App.feedTimer = setTimeout(function () {
       App.feedBusy = false;
       if (App.feed.length) pumpFeed();
       else renderNow(App.view);          // 할 말이 없으면 지금 상황으로 돌아간다
-    }, Math.max(320, hold));
+    }, hold);
   }
 
   function showNow(icon, text, owner) {
@@ -964,19 +986,28 @@
     }
     inner.classList.toggle('award', award);
     box.classList.remove('hidden', 'out');
-    clearTimeout(App.bigTimer);
+    clearTimeout(App.bigTimer); clearTimeout(App.bigHideTimer);
     App.bigTimer = setTimeout(function () {
       box.classList.add('out');
-      setTimeout(function () {
+      App.bigHideTimer = setTimeout(function () {
         box.classList.add('hidden');
         $('bnTitle').style.color = '';
         inner.classList.remove('award');
       }, 300);
     }, award ? 2600 : (item.pair ? 2400 : 1900));
+    App.plaqueUntil = Date.now() + (award ? 2600 : (item.pair ? 2400 : 1900));
   }
 
   // 화면 가운데 큰 알림 — 지금 무슨 단계인지 알려 주는 데 쓴다
   function showPlaque(icon, title, sub, color, hold) {
+    // 주사위·관문이 떠 있거나 앞 알림을 아직 읽는 중이면 기다렸다 띄운다
+    if (overlayBusy() || Date.now() < (App.plaqueUntil || 0)) {
+      if ((App.plaqueWait || 0) > 26) { App.plaqueWait = 0; return; }
+      App.plaqueWait = (App.plaqueWait || 0) + 1;
+      setTimeout(function () { showPlaque(icon, title, sub, color, hold); }, 220);
+      return;
+    }
+    App.plaqueWait = 0;
     var box = $('bigNews'), inner = box.querySelector('.bigNewsInner');
     var bnCard = $('bnCard');
     if (bnCard) bnCard.hidden = true;
@@ -988,14 +1019,25 @@
     $('bnTitle').style.color = color || '';
     $('bnSub').textContent = sub || '';
     box.classList.remove('hidden', 'out');
-    clearTimeout(App.bigTimer);
+    clearTimeout(App.bigTimer); clearTimeout(App.bigHideTimer);
+    App.plaqueUntil = Date.now() + hold;
     App.bigTimer = setTimeout(function () {
       box.classList.add('out');
-      setTimeout(function () {
+      App.bigHideTimer = setTimeout(function () {
         box.classList.add('hidden');
         $('bnTitle').style.color = '';
       }, 300);
     }, hold);
+  }
+
+  // 떠 있는 큰 알림을 즉시 치운다
+  function hidePlaque() {
+    var box = $('bigNews');
+    if (!box || box.classList.contains('hidden')) return;
+    clearTimeout(App.bigTimer); clearTimeout(App.bigHideTimer);
+    box.classList.add('hidden'); box.classList.remove('out');
+    $('bnTitle').style.color = '';
+    App.plaqueUntil = 0;
   }
 
   // 단계가 바뀔 때 한 번 멈춰서, 무슨 일이 있었고 다음에 뭘 하는지 읽고 넘어가게 한다
@@ -1015,6 +1057,7 @@
       list.appendChild(row);
     });
     list.classList.toggle('hidden', !(rows && rows.length));
+    hidePlaque();
     App.hold = true;                       // 봇은 기다린다
     clearTimeout(App.botTimer);
     box.classList.remove('hidden');
@@ -1096,7 +1139,7 @@
     showPlaque(mine ? '\uD83D\uDC4B' : '\u23ED\uFE0F',
       mine ? '내 차례' : p.name + '의 차례',
       mine ? '주사위를 굴려 시작하세요' : '지켜보는 차례입니다',
-      PCOLOR[p.color] || '', mine ? 2200 : 1100);
+      PCOLOR[p.color] || '', mine ? 2200 : 1500);
   }
 
   // 마을·도로를 놓는 동안 — 지금 누가 놓을 차례인지
@@ -1110,7 +1153,7 @@
       mine ? (round2 ? '두 번째 마을과 도로 — 이 마을 둘레의 자원을 바로 받습니다'
                     : '마을 하나와 이어진 도로 하나를 놓습니다')
            : (round2 ? '두 바퀴째는 반대 순서입니다' : '마을과 도로를 하나씩 놓습니다'),
-      PCOLOR[p.color] || '', mine ? 1900 : 1000);
+      PCOLOR[p.color] || '', mine ? 2000 : 1400);
   }
 
   // 거래 — 카드가 두 사람 사이를 실제로 건너간다
@@ -1276,6 +1319,15 @@
   }
   var diceSpin = null, diceHide = null;
   function showDiceRoll(d, roller, v, done, opts) {
+    // 큰 알림이 떠 있으면 — 내가 굴린 것이면 바로 치우고(내가 누른 것이니까),
+    // 봇이 굴린 것이면 다 읽을 때까지 기다렸다가 굴린다.
+    var byMe = !!(roller && v && roller.id === v.me);
+    var left = (App.plaqueUntil || 0) - Date.now();
+    if (!byMe && left > 120) {
+      setTimeout(function () { showDiceRoll(d, roller, v, done, opts); }, Math.min(left, 2200));
+      return;
+    }
+    hidePlaque();
     var forOrder = !!(opts && opts.order);
     var ov = $('diceOverlay');
     ov.classList.remove('hidden'); ov.classList.remove('out');
