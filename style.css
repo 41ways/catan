@@ -733,7 +733,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 .resCard:first-child { margin-left: 0; }
 .resCard { background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0 1px, transparent 1px 3px), radial-gradient(120% 100% at 20% 0%, rgba(255,255,255,0.7), transparent 60%); }
-.cardSlot:hover .resCard:last-child { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-8px); box-shadow: 0 8px 14px rgba(0,0,0,0.3); }
+@media (hover:hover){.cardSlot:hover .resCard:last-child { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-8px); box-shadow: 0 8px 14px rgba(0,0,0,0.3); }}
 .resCard .resFace { font-size: 30px; line-height: 1; }
 .resCard .resName { font-size: 11px; font-weight: 700; color: #3a3227; letter-spacing: -0.02em; }
 /* 뒤에 깔린 카드는 색띠만 — 글자가 삐져나오지 않게 */
@@ -769,7 +769,7 @@ h1 { margin: 10px 0 0; font-size: 40px; letter-spacing: 0.02em; }
 }
 .cardCount.zero { background: var(--line); color: var(--dim); border-color: var(--panel); }
 .cardSlot.selectable { cursor: pointer; }
-.cardSlot.selectable:hover .resCard { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-5px); }
+@media (hover:hover){.cardSlot.selectable:hover .resCard { transform: rotate(calc((var(--i) - var(--mid, 2)) * 4deg)) translateY(-5px); }}
 .cardSlot.sel .cardCount { background: var(--gold); color: var(--btnInk); }
 .cardSlot.com .resCard { border-style: dashed; }
 
