@@ -4,7 +4,7 @@
 #   sh qa/run.sh pace  [base|ck] — 안내가 몇 초씩 떠 있었는지 재서 너무 빠른 곳을 찾는다
 # 미리 프로젝트 폴더를 http 로 띄워 두어야 한다:  python3 -m http.server 8899
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-PORT=${PORT:-8899}
+PORT=${PORT:-8896}   # 8899 는 다른 도구와 자주 겹친다
 MODE=$2
 case "$1" in
   play)

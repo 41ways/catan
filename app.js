@@ -1145,6 +1145,15 @@
   function showGate(icon, title, sub, rows) {
     var box = $('gate');
     if (!box) return;
+    // 명패가 아직 떠 있으면 다 읽고 나서 관문을 연다.
+    // 바로 덮으면 방금 뜬 "○○의 차례" 가 0.7초 만에 사라진다.
+    var leftP = (App.plaqueUntil || 0) - Date.now();
+    if (leftP > 120) {
+      clearTimeout(App.gateWaitTimer);
+      App.gateWaitTimer = setTimeout(function () { showGate(icon, title, sub, rows); },
+                                     Math.min(leftP, 2200));
+      return;
+    }
     $('gateIcon').textContent = icon;
     $('gateTitle').textContent = title;
     $('gateSub').textContent = sub || '';
@@ -1421,11 +1430,15 @@
   var diceSpin = null, diceHide = null;
   function showDiceRoll(d, roller, v, done, opts) {
     // 큰 알림이 떠 있으면 — 내가 굴린 것이면 바로 치우고(내가 누른 것이니까),
-    // 봇이 굴린 것이면 다 읽을 때까지 기다렸다가 굴린다.
+    // 떠 있는 명패를 다 읽고 나서 굴린다.
+    // 내가 굴릴 때도 기다려야 한다 — 이때 지워지는 명패가 하필 "내 차례" 라서,
+    // 정작 가장 중요한 알림이 0초 만에 사라졌다. (qa/run.sh pace 로 잡음)
+    // 다만 내 차례는 내가 곧 굴릴 것을 아니까 남의 차례보다는 짧게 기다린다.
     var byMe = !!(roller && v && roller.id === v.me);
     var left = (App.plaqueUntil || 0) - Date.now();
-    if (!byMe && left > 120) {
-      setTimeout(function () { showDiceRoll(d, roller, v, done, opts); }, Math.min(left, 2200));
+    if (left > 120) {
+      setTimeout(function () { showDiceRoll(d, roller, v, done, opts); },
+                 Math.min(left, byMe ? 1400 : 2200));
       return;
     }
     hidePlaque();
