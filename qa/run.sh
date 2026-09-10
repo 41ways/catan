@@ -10,13 +10,18 @@ case "$1" in
   play)
     N=${3:-1}; i=0
     while [ $i -lt $N ]; do
+      # 확장(ck)은 한 판이 200턴을 넘기도 해서 예산을 넉넉히 준다
       "$CHROME" --headless --disable-gpu --hide-scrollbars --window-size=390,844 \
-        --virtual-time-budget=1800000 --dump-dom "http://localhost:$PORT/?scene=qa&mode=${MODE:-base}" 2>/dev/null \
+        --virtual-time-budget=4200000 --dump-dom "http://localhost:$PORT/?scene=qa&mode=${MODE:-base}" 2>/dev/null \
       | python3 -c "
 import sys,re,json
 m=re.search(r'<pre id=\"qaout\"[^>]*>(.*?)</pre>', sys.stdin.read(), re.S)
 o=json.loads(m.group(1))
-print(('OK  ' if o['done'] and not o['errs'] else 'NG  ')+o['mode']+' turn='+str(o['turn'])+' vps='+str(o.get('vps')))
+ok = o['done'] and not o['errs']
+print(('OK  ' if ok else 'NG  ')+o['mode']+' turn='+str(o['turn'])+' vps='+str(o.get('vps')))
+# 안 끝난 것과 시간 예산이 먼저 떨어진 것은 원인이 다르다 — 구분해서 알려 준다
+if not ok and not o['errs'] and not o['done']:
+    print('    ! 판이 끝나기 전에 가상시간 예산이 떨어졌습니다 (판이 길었을 뿐일 수 있음 — 다시 돌려 보세요)')
 [print('    ! '+e) for e in o['errs'][:6]]
 "
       i=$((i+1))
