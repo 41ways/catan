@@ -166,6 +166,9 @@
     var ch = w.charCodeAt(w.length - 1);
     if (ch >= 0xAC00 && ch <= 0xD7A3) return (ch - 0xAC00) % 28 !== 0;
     if (ch >= 0x30 && ch <= 0x39) return '013678'.indexOf(String.fromCharCode(ch)) >= 0;
+    // 로마자 이름도 읽는 소리로 친다 — Sherlock 은 「이」, Holmes 는 「가」
+    var c = String.fromCharCode(ch);
+    if (/[a-z]/i.test(c)) return !/[aeiouysxz]/i.test(c);
     return false;
   }
   function jongIs(w, code) {
