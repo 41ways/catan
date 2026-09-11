@@ -464,7 +464,10 @@ group('룰북 교차 확인 — 제한 규칙');
   s2.turn = 0; s2.phase = 'main';
   a.cards = [{ type: 'spy' }, { type: 'spy' }, { type: 'spy' }, { type: 'warlord' }];
   b.cards = [{ type: 'harbor' }];
-  ok(!CK.playCard(s2, 'p0', 'spy', ['p1']).ok, '넉 장이면 첩자로도 못 가져온다');
+  // 첩보원 카드 자신은 쓰고 나면 손에서 빠진다 — 석 장 + 가져온 한 장 = 넉 장이라 넘지 않는다
+  ok(CK.playCard(s2, 'p0', 'spy', ['p1']).ok, '첩보원을 포함해 넉 장이어도 가져올 수 있다');
+  eq(a.cards.length, 4, '가져온 뒤에도 넉 장');
+  ok(a.cards.length <= CK.MAX_CARDS, '첩자로도 넉 장을 넘지 않는다');
 
   // 수도는 올릴 도시가 있어야 한다
   var s3 = ready(2, 204);
@@ -679,6 +682,23 @@ group('무작위 60판 완주');
     }
     CK.endTurn(s, cur.id);
   }
+})();
+
+group('준비 중에 나가기');
+(function () {
+  var s = game(3, 21);
+  var later = s.players[s.setupOrder[1]];
+  CK.dropPlayer(s, later.id);
+  var g = 0, bad = false;
+  while (s.phase === 'setup' && g++ < 40) {
+    var w = CK.setupPlayer(s);
+    if (w.out) { bad = true; break; }
+    if (s.setupSub === 'settlement') CK.placeSettlement(s, w.id, CK.legalSettlements(s, w.id)[0]);
+    else CK.placeRoad(s, w.id, CK.legalRoads(s, w.id)[0]);
+  }
+  ok(!bad, '준비 차례에 나간 사람이 오지 않는다');
+  eq(s.phase, 'roll', '남은 사람끼리 준비를 마친다');
+  ok(!CK.current(s).out, '첫 주사위는 남은 사람');
 })();
 
 console.log('');

@@ -470,6 +470,9 @@
     note(s, 'road', e, pid);
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
+    // 다음 자리가 이미 나간 사람이면 건너뛴다 — dropPlayer 는 그 순간의 자리만 넘겨서, 나중 차례의
+    // 나간 사람 자리에서 준비가 멈췄다
+    while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
       s.phase = 'roll';
       s.turn = firstRoller(s);                            // 마지막에 놓은 사람(= 처음 놓은 사람)부터
@@ -611,6 +614,10 @@
       if (none) {
         s.aqueduct = s.aqueduct || [];
         s.aqueduct.push(p.id);
+        // 예전엔 대상만 적어 두고 아무것도 주지 않았다. 고르는 창 대신, 가장 적게 가진 기본 자원을 준다.
+        var pick = null;
+        RES.forEach(function (c) { if (s.bank[c] > 0 && (pick === null || p.res[c] < p.res[pick])) pick = c; });
+        if (pick && take(s, p, pick, 1)) say(s, null, p.name + ' 수로 — 받은 게 없어 ' + NAME[pick] + ' 한 장');
       }
     });
     s.lastGain = [];
@@ -758,18 +765,21 @@
     ALL.forEach(function (c) { p.res[c] -= tmp[c]; s.bank[c] += tmp[c]; });
     delete s.mustDiscard[pid];
     say(s, null, p.name + ' 버림 — ' + handText(tmp));
-    if (!Object.keys(s.mustDiscard).length) {
-      if (s.saboteurBack) { s.phase = s.saboteurBack; s.saboteurBack = null; }
-      else if (s.robberSleeping) {
-        s.robberSleeping = false;
-        s.phase = s.robberBack;
-        say(s, null, '야만족이 아직 상륙한 적이 없어 도둑은 그대로 있습니다.');
-      } else {
-        s.phase = 'robber';
-        say(s, null, current(s).name + ' 차례 — 도둑을 옮깁니다.');
-      }
-    }
+    if (!Object.keys(s.mustDiscard).length) afterDiscards(s);
     return OK;
+  }
+  // 버릴 사람이 다 버렸다 — 파괴공작이면 원래 단계로, 도둑이 잠든 동안이면 그대로, 아니면 도둑을 옮긴다.
+  // 마지막으로 버릴 사람이 나가도 같은 길로 가야 한다 (예전엔 늘 도둑 단계로 가서 파괴공작 복귀가 어긋났다)
+  function afterDiscards(s) {
+    if (s.saboteurBack) { s.phase = s.saboteurBack; s.saboteurBack = null; }
+    else if (s.robberSleeping) {
+      s.robberSleeping = false;
+      s.phase = s.robberBack;
+      say(s, null, '야만족이 아직 상륙한 적이 없어 도둑은 그대로 있습니다.');
+    } else {
+      s.phase = 'robber';
+      say(s, null, current(s).name + ' 차례 — 도둑을 옮깁니다.');
+    }
   }
 
   function robberVictims(s, hex, pid) {
@@ -1143,7 +1153,9 @@
 
   /* ---------------- 거래 ---------------- */
 
-  function tradeRate(p, c) {
+  // st — 상태나 뷰(상인 말 위치를 보려고). 상인 말이 놓인 땅의 자원은 그 주인에게 2:1 이다.
+  function tradeRate(p, c, st) {
+    if (st && st.merchant && st.merchant.p === p.id && st.merchant.res === c) return 2;
     if (RES.indexOf(c) >= 0 && p.ports[c]) return 2;
     if (p.fleetPick === c) return 2;                       // 상선대
     if (p.ports.any) return 3;
@@ -1155,7 +1167,7 @@
     if (p.id !== pid) return err('차례가 아닙니다.');
     if (ALL.indexOf(give) < 0 || ALL.indexOf(get) < 0) return err('그런 카드가 없습니다.');
     if (give === get) return err('같은 것끼리는 바꾸지 않습니다.');
-    var rate = tradeRate(p, give);
+    var rate = tradeRate(p, give, s);
     if (p.res[give] < rate) return err(NAME[give] + ' ' + rate + '장이 있어야 합니다.');
     if (s.bank[get] < 1) return err('은행에 ' + GA(NAME[get]) + ' 없습니다.');
     p.res[give] -= rate; s.bank[give] += rate;
@@ -1279,7 +1291,7 @@
       if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = firstRoller(s); s.turnCount = 1; updateLongest(s); }
       return;
     }
-    if (s.phase === 'discard' && !Object.keys(s.mustDiscard).length) s.phase = 'robber';
+    if (s.phase === 'discard' && !Object.keys(s.mustDiscard).length) afterDiscards(s);
     if (current(s).out) { s.phase = 'main'; endTurn(s, current(s).id); }
     updateLongest(s);
   }
@@ -1519,7 +1531,8 @@
       if (!target || target.id === p.id || target.out) return err('상대를 골라 주세요.');
       if (!target.cards.length) return err('그 사람은 진보카드가 없습니다.');
       var i = Math.floor(s.rnd() * target.cards.length);
-      if (p.cards.length >= MAX_CARDS) return err('내 진보카드가 이미 넉 장입니다.');
+      // 첩보원 카드 자신은 쓰고 나면 손에서 빠지므로 세지 않는다 (예전엔 넉 장이면 늘 막혔다)
+      if (p.cards.length - 1 >= MAX_CARDS) return err('내 진보카드가 이미 넉 장입니다.');
       var card = target.cards.splice(i, 1)[0];
       p.cards.push(card);
       say(s, p.id, '가져온 카드: ' + CARD_NAME[card.type]);
