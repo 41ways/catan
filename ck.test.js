@@ -327,6 +327,27 @@ group('약탈 — 마을 말이 없을 때 (룰북 9쪽)');
   });
 })();
 
+group('약탈 — 수도는 약탈당하지 않는다');
+(function () {
+  var s = ready(2, 4242);
+  s.players.forEach(function (q) { q.knights = []; });      // 방어 실패
+  var a = s.players[0], b = s.players[1];
+  // a 는 도시가 하나뿐이고 그게 수도다. b 는 보통 도시가 있다.
+  a.cities = a.cities.slice(0, 1); a.metro = { trade: true, politics: false, science: false };
+  s.barb = CK.BARB_TRACK - 1;
+  var guard = 0;
+  while (guard++ < 3000) {
+    s.phase = 'roll'; s.dice = null;
+    CK.roll(s, CK.current(s).id);
+    if (s.barbResult) break;
+    if (s.phase !== 'roll') { s.phase = 'main'; s.turn = 0; }
+    s.barb = CK.BARB_TRACK - 1;
+  }
+  ok(s.barbResult && !s.barbResult.win, '방어 실패');
+  eq(a.cities.length, 1, '수도뿐인 사람은 도시를 잃지 않는다');
+  ok(CK.metroCount(a) <= a.cities.length, '수도 수가 도시 수를 넘지 않는다');
+})();
+
 group('성벽과 손패 한도');
 (function () {
   var s = ready(2, 88);

@@ -191,6 +191,11 @@
     return null;
   }
   function current(s) { return s.players[s.turn]; }
+  // 준비가 끝나고 첫 주사위를 굴릴 사람 — 마지막에 놓은 사람부터, 나갔으면 그 앞(순서상 다음) 사람
+  function firstRoller(s) {
+    for (var i = s.setupOrder.length - 1; i >= 0; i--) if (!s.players[s.setupOrder[i]].out) return s.setupOrder[i];
+    return s.setupOrder[s.setupOrder.length - 1];
+  }
   function setupPlayer(s) { return s.players[s.setupOrder[s.setupIdx]]; }
   function handCount(p) {
     var n = 0;
@@ -426,7 +431,8 @@
     var p = setupPlayer(s);
     if (p.id !== pid) return err('차례가 아닙니다.');
     if (!spacingOK(s, v)) return err('다른 건물과 두 변 이상 떨어뜨려 놓아야 합니다.');
-    var second = s.setupIdx >= s.players.length;
+    // 순서는 남은 사람만으로 짜므로 인원(나간 사람 포함)이 아니라 순서의 절반과 견준다
+    var second = s.setupIdx >= s.setupOrder.length / 2;
     if (second) {
       if (!p.left.city) return err('도시 말이 없습니다.');
       s.board.verts[v].b = { t: 'city', p: pid };
@@ -466,7 +472,7 @@
     s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
       s.phase = 'roll';
-      s.turn = s.setupOrder[s.setupOrder.length - 1];     // 마지막에 놓은 사람부터
+      s.turn = firstRoller(s);                            // 마지막에 놓은 사람(= 처음 놓은 사람)부터
       s.turnCount = 1;
       updateLongest(s);
       say(s, null, '준비 끝. ' + current(s).name + '부터 주사위를 굴립니다.');
@@ -658,12 +664,15 @@
       s.barbResult = { win: true, power: defTotal, barb: cityCount };
     } else {
       var low = Infinity;
+      // 약탈 대상은 수도가 아닌 도시가 하나라도 있는 사람뿐이다. 수도는 약탈당하지 않으므로
+      // 도시가 수도뿐인 사람은 '가장 약한 사람'을 가릴 때도 빠진다. (예전에는 수도뿐인 사람도
+      // 도시를 잃어 도시 0개에 수도 2점만 남는 일이 있었다.)
       s.players.forEach(function (p) {
-        if (p.out || !p.cities.length) return;           // 도시가 없으면 약탈 대상이 아니다
+        if (p.out || !hasFreeCity(p)) return;
         if (powers[p.id] < low) low = powers[p.id];
       });
       var victims = s.players.filter(function (p) {
-        return !p.out && p.cities.length && powers[p.id] === low;
+        return !p.out && hasFreeCity(p) && powers[p.id] === low;
       });
       victims.forEach(function (p) {
         var v = weakestCity(s, p);
@@ -1266,7 +1275,8 @@
       while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) {
         s.setupIdx++; s.setupSub = 'settlement'; s.setupSpot = null;
       }
-      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turnCount = 1; }
+      // 준비가 여기서 끝났으면 첫 차례도 정해 준다 (예전엔 차례를 안 정해 나간 사람 차례로 멈췄다)
+      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = firstRoller(s); s.turnCount = 1; updateLongest(s); }
       return;
     }
     if (s.phase === 'discard' && !Object.keys(s.mustDiscard).length) s.phase = 'robber';
@@ -1673,7 +1683,7 @@
       progressLeft: { trade: s.progress.trade.length, politics: s.progress.politics.length, science: s.progress.science.length },
       freeRoads: s.freeRoads,
       merchant: s.merchant ? JSON.parse(JSON.stringify(s.merchant)) : null,
-      setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
+      setup: { idx: s.setupIdx, half: (s.setupOrder || []).length / 2, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
       order: { rolls: JSON.parse(JSON.stringify(s.orderRolls || {})), tie: s.orderTie ? s.orderTie.slice() : null, first: s.firstPlayer || null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,
@@ -1719,12 +1729,14 @@
           power: knightPower(s, p),
           handLimit: handLimit(p),
           vp: vpOf(s, p),
+          // 확장판의 승점 카드(인쇄소·헌법)는 공개다. 본인에게만 넣으면 상대 점수와
+          // 결과 화면의 점수가 그만큼 모자라게 보였다(이긴 사람이 목표 점수보다 낮게 찍힘).
+          vpFull: vpFull(s, p),
           roadLen: roadLength(s, p.id)
         };
         if (p.id === pid) {
           pub.res = JSON.parse(JSON.stringify(p.res));
           pub.cardList = p.cards.map(function (c) { return { type: c.type, track: c.track }; });
-          pub.vpFull = vpFull(s, p);
           pub.craneReady = !!p.craneReady;
           pub.fleetPick = p.fleetPick || null;
         }
@@ -1737,8 +1749,18 @@
         cities: legalCities(s, pid),
         roads: legalRoads(s, pid),
         knightSpots: legalKnightSpots(s, pid),
-        walls: (mePlayer.cities || []).filter(function (v) { return !s.board.verts[v].wall; })
-      } : { settlements: [], cities: [], roads: [], knightSpots: [], walls: [] }
+        walls: (mePlayer.cities || []).filter(function (v) { return !s.board.verts[v].wall; }),
+        // 판에서 고를 대상 — 참가자는 판 전체 상태가 없어 스스로 셀 수 없으니 여기서 넣어 준다
+        knightMoves: (function () {
+          var m = {};
+          (mePlayer.knights || []).forEach(function (k) {
+            m[k.v] = knightMoves(s, pid, k.v).concat(knightDisplaceTargets(s, pid, k.v));
+          });
+          return m;
+        })(),
+        openRoads: s.board.edges.map(function (e, i) { return e.road && isOpenRoad(s, i) ? i : -1; })
+          .filter(function (i) { return i >= 0; })
+      } : { settlements: [], cities: [], roads: [], knightSpots: [], walls: [], knightMoves: {}, openRoads: [] }
     };
   }
 
