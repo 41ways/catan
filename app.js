@@ -441,8 +441,15 @@
         r = eng.moveRobber(s, pid, hx, cd.length ? cd[0] : null);
       }
     } else {
-      var a = bot.act(v, App.skill);
+      var key = s.turnCount + ':' + pid;
+      if (!App.botSkip || App.botSkip.k !== key) App.botSkip = { k: key, list: [] };
+      var a = bot.act(v, App.skill, App.botSkip.list);
       if (a && typeof eng[a.action] === 'function') r = eng[a.action].apply(null, [s, pid].concat(a.args));
+      if ((!r || !r.ok) && a && a.action === 'playCard' && App.botSkip.list.length < 8) {
+        App.botSkip.list.push(a.args[0]);      // 거절된 카드 — 이번 차례엔 다시 고르지 않는다
+        pushViews();                           // 다음 봇 걸음에서 다른 수를 둔다
+        return;
+      }
       if (!r || !r.ok) {
         if (s.phase === 'roll') r = eng.roll(s, pid);
         else { if (s.freeRoads > 0) s.freeRoads = 0; r = eng.endTurn(s, pid); }
@@ -1228,7 +1235,9 @@
     var g = $('game');
     if (!g) return;
     var mine = v.phase === 'setup' ? (v.setup && v.setup.who === v.me) : isMyTurn(v);
-    var placing = mine && (v.phase === 'setup' || v.phase === 'robber' || !!App.build || v.freeRoads > 0);
+    // 판에서 무언가를 골라야 하는 때 — 짓기뿐 아니라 기사 이동·진보카드 대상 고르기도 판을 크게 보여 준다
+    var picking = !!(App.pickVert || App.pickHex || App.pickEdge) || (App.knightSel !== null && App.knightSel !== undefined);
+    var placing = mine && (v.phase === 'setup' || v.phase === 'robber' || !!App.build || v.freeRoads > 0 || picking);
     // 순서를 정하는 동안에는 짓기 칸이 아무 쓸모가 없다 — 접어서 판에 자리를 준다
     g.classList.toggle('ordering', v.phase === 'order');
     g.classList.toggle('mine', !!mine);
@@ -2532,12 +2541,16 @@
         }
       });
     }
-    if (k.canAct) {
+    // 갈 곳·밀어낼 곳은 방장이 뷰에 실어 준 목록으로 센다 (참가자는 App.state 가 없어 늘 0 으로 보였다)
+    var moves = ((v.legal && v.legal.knightMoves) || {})[k.v] || [];
+    if (k.canAct && moves.length) {
       opts.push({ label: '이동 / 추방', fn: function () {
         App.knightSel = k.v;
         toast('갈 자리나 밀어낼 상대 기사를 누르세요.');
         render();
       } });
+    }
+    if (k.canAct) {
       if (v.board.verts[k.v].hexes.indexOf(v.robber) >= 0) {
         opts.push({ label: '도둑 쫓아내기', fn: function () { act('chaseRobber', [k.v]); } });
       }
@@ -2547,9 +2560,7 @@
     if (!k.active) hint = '비활동 상태 — 밀 1장으로 깨워야 움직이거나 도둑을 쫓을 수 있습니다.';
     else if (!k.canAct) hint = '활동 상태 — 이번 차례에 깨웠거나 이미 움직여서, 다음 차례부터 움직일 수 있습니다.';
     else {
-      var moves = 0;
-      try { if (App.state) moves = CK.knightMoves(App.state, v.me, k.v).length; } catch (e) { moves = -1; }
-      hint = moves === 0 ? '활동 상태 — 이어진 내 도로 끝에 갈 자리가 없습니다. 도로를 더 이어 보세요.'
+      hint = !moves.length ? '활동 상태 — 이어진 내 도로 끝에 갈 자리가 없습니다. 도로를 더 이어 보세요.'
                          : '활동 상태 — 움직이거나 상대 기사를 밀어낼 수 있습니다.';
     }
     if (!opts.length) { toast(rankName + ' 기사 — ' + hint); return; }
@@ -2563,6 +2574,8 @@
     var v = App.view, p = meOf(v);
     var opp = v.players.filter(function (q) { return q.id !== v.me && !q.out; });
     function go(args) { act('playCard', [type, args || []]); }
+    // 주사위 전·도둑 단계에 대상을 고르는 카드를 누르면 판에 과녁은 뜨는데 그만두기가 없고, 눌러도 거절됐다
+    if (type !== 'alchemist' && v.phase !== 'main') { toast('진보카드는 주사위를 굴린 뒤에 씁니다. (연금술사만 굴리기 전)'); return; }
 
     if (type === 'alchemist') {
       if (v.phase !== 'roll') { toast('연금술사는 주사위를 굴리기 전에만 씁니다.'); return; }
@@ -2633,11 +2646,15 @@
     }
     if (type === 'intrigue') {
       var spots = [];
+      // 엔진은 내 도로가 닿은 자리의 기사만 받는다 — 닿지 않은 기사를 고르면 거절되고 고르기만 날아갔다
+      var touchesMine = function (vi) {
+        return v.board.edges.some(function (e) { return e.road === v.me && (e.a === vi || e.b === vi); });
+      };
       v.players.forEach(function (q) {
         if (q.id === v.me) return;
-        (q.knights || []).forEach(function (k) { spots.push(k.v); });
+        (q.knights || []).forEach(function (k) { if (touchesMine(k.v)) spots.push(k.v); });
       });
-      if (!spots.length) { toast('밀어낼 상대 기사가 없습니다.'); return; }
+      if (!spots.length) { toast('내 도로가 닿은 상대 기사가 없습니다.'); return; }
       App.pickVert = { kind: 'intrigue', list: spots };
       toast('밀어낼 상대 기사를 누르세요.');
       render();
@@ -2729,11 +2746,12 @@
       if (p && p.metro[t]) row.appendChild(el('span', 'metro', '수도'));
       // 개발 버튼
       var can = p && isMyTurn(v) && v.phase === 'main' && lv < CK.MAX_LEVEL;
-      var cost = lv + 1;
-      var b = el('button', 'trkBtn', lv < CK.MAX_LEVEL ? ('개발 ' + cost) : '완료');
+      var crane = !!(p && p.craneReady);                  // 기중기 — 한 장 덜 든다 (예전엔 늘 false 로 보내 효과가 없었다)
+      var cost = lv + 1 - (crane ? 1 : 0);
+      var b = el('button', 'trkBtn', lv < CK.MAX_LEVEL ? ('개발 ' + cost + (crane ? ' 🏗' : '')) : '완료');
       if (can && p.res[CK.TRACK_COM[t]] >= cost) {
         b.classList.add('can');
-        b.onclick = function () { act('develop', [t, false]); };
+        b.onclick = function () { act('develop', [t, crane]); };
       } else {
         b.disabled = lv >= CK.MAX_LEVEL;
         b.onclick = function () {
@@ -3045,7 +3063,7 @@
     }
 
     // 거래는 할 수 있을 때만 내놓는다
-    var canBank = cardsOf(v).some(function (c) { return res[c] >= (isExt(v) ? CK.tradeRate(p, c) : R.tradeRate(p, c)); });
+    var canBank = cardsOf(v).some(function (c) { return res[c] >= (isExt(v) ? CK.tradeRate(p, c, v) : R.tradeRate(p, c)); });
     var others = v.players.filter(function (q) { return q.id !== v.me && !q.out; }).length;
     var canOffer = others > 0 && cardsOf(v).some(function (c) { return res[c] > 0; });
     if (canBank || canOffer) {
@@ -3071,7 +3089,9 @@
   function renderTrade(v, msg, acts, btn) {
     var t = v.trade;
     var from = playerIn(v, t.from);
-    var giveTxt = R.resText(t.give), wantTxt = R.resText(t.want);
+    // 확장판이면 상품(옷감·종이·화폐)까지 적는다 — 기본판 글로 쓰면 상품이 빠져 빈 제안처럼 보였다
+    var txt = function (m) { return H(isExt(v) ? CK.handText(m) : R.resText(m)); };
+    var giveTxt = txt(t.give), wantTxt = txt(t.want);
     if (t.from === v.me) {
       var yes = [], waiting = [];
       v.players.forEach(function (q) {
@@ -3101,7 +3121,7 @@
 
   function openBankTrade(v, p) {
     var all = cardsOf(v);
-    var rateOf = function (c) { return isExt(v) ? CK.tradeRate(p, c) : R.tradeRate(p, c); };
+    var rateOf = function (c) { return isExt(v) ? CK.tradeRate(p, c, v) : R.tradeRate(p, c); };
     var opts = [];
     all.forEach(function (c) {
       var rate = rateOf(c);
@@ -3393,7 +3413,8 @@
       App.seats.forEach(function (s) { if (s.id === pid) seat = s; });
       if (!seat) return;
       App.seats = App.seats.filter(function (s) { return s.id !== pid; });
-      if (App.started && App.state) { R.dropPlayer(App.state, pid); pushViews(); }
+      // 확장판이면 확장판 엔진으로 — 기본판 dropPlayer 가 확장판 상태를 읽다 던져 모든 화면이 멈췄다
+      if (App.started && App.state) { E().dropPlayer(App.state, pid); pushViews(); }
       else { renderSeats(App.seats, true); broadcastLobby(); }
       toast(seat.name + ' 나감');
     };
