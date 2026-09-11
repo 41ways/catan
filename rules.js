@@ -500,6 +500,11 @@
   /* ---------------- 준비 단계 ---------------- */
 
   function setupPlayer(s) { return s.players[s.setupOrder[s.setupIdx]]; }
+  // 준비가 끝나고 첫 주사위를 굴릴 사람 — 먼저 놓은 사람이 나갔으면 순서상 다음 사람
+  function firstRoller(s) {
+    for (var i = 0; i < s.setupOrder.length; i++) if (!s.players[s.setupOrder[i]].out) return s.setupOrder[i];
+    return s.setupOrder[0];
+  }
 
   function placeSettlement(s, pid, v) {
     if (s.phase !== 'setup') return err('지금은 마을을 놓을 때가 아닙니다.');
@@ -513,7 +518,8 @@
     note(s, 'settlement', v, pid);
     s.setupSpot = v; s.setupSub = 'road';
     say(s, null, p.name + ' 마을');
-    if (s.setupIdx >= s.players.length) {                 // 두 바퀴째 — 둘레 자원을 받는다
+    // 두 바퀴째인가 — 순서는 남은 사람만으로 짜므로 인원(나간 사람 포함)이 아니라 순서의 절반과 견준다
+    if (s.setupIdx >= s.setupOrder.length / 2) {          // 두 바퀴째 — 둘레 자원을 받는다
       var got = emptyRes();
       s.board.verts[v].hexes.forEach(function (h) {
         var hex = s.board.hexes[h];
@@ -537,7 +543,7 @@
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
-      s.phase = 'roll'; s.turn = s.setupOrder[0]; s.turnCount = 1;   // 먼저 놓은 사람이 먼저 굴린다
+      s.phase = 'roll'; s.turn = firstRoller(s); s.turnCount = 1;   // 먼저 놓은 사람이 먼저 굴린다
       updateLongest(s);
       say(s, null, '준비 끝. ' + current(s).name + '부터 주사위를 굴립니다.');
     }
@@ -717,7 +723,9 @@
   /* ---------------- 건설 ---------------- */
 
   function build(s, pid, kind, id) {
-    if (s.phase !== 'main') return err('지금은 지을 때가 아닙니다.');
+    // 주사위 전에 쓴 도로 건설 카드의 공짜 도로는 굴리기 전에도 놓는다. 그 밖의 건설은 굴린 뒤에만.
+    var preRollFree = s.phase === 'roll' && kind === 'road' && s.freeRoads > 0;
+    if (s.phase !== 'main' && !preRollFree) return err('지금은 지을 때가 아닙니다.');
     var p = current(s);
     if (p.id !== pid) return err('차례가 아닙니다.');
     if (s.trade) return err('먼저 거래 제안을 정리해 주세요.');
@@ -848,7 +856,9 @@
     if (type === 'road') {
       p.dev.splice(idx, 1); s.playedDev = true;
       s.freeRoads = Math.min(2, p.left.road);
-      if (s.phase === 'roll') s.phase = 'main';           // 도로를 놓으려면 건설 단계여야 한다
+      // 주사위 전에 썼으면 단계는 그대로 둔다. 예전에는 건설 단계로 넘겨 버려서
+      // 도로를 다 놓고 나면 주사위를 굴릴 수 없고 차례만 끝낼 수 있었다(그 차례엔 자원이 안 나옴).
+      // 공짜 도로는 build() 가 굴리기 전에도 받아 준다.
       say(s, null, p.name + ' 도로 건설 — 도로 ' + s.freeRoads + '개를 공짜로 놓습니다.');
       if (!s.freeRoads || !legalRoads(s, pid).length) {
         s.freeRoads = 0;
@@ -1000,7 +1010,7 @@
       while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) {
         s.setupIdx++; s.setupSub = 'settlement'; s.setupSpot = null;
       }
-      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = s.setupOrder[0]; s.turnCount = 1; }
+      if (s.setupIdx >= s.setupOrder.length) { s.phase = 'roll'; s.turn = firstRoller(s); s.turnCount = 1; }
       return;
     }
     if (s.phase === 'discard' && !Object.keys(s.mustDiscard).length) s.phase = 'robber';
@@ -1029,7 +1039,7 @@
       lastSteal: (s.lastSteal && s.lastSteal.turn >= s.turnCount - 1) ? s.lastSteal : null,
       blocked: s.blocked || null,
       lastBank: (s.lastBank && s.lastBank.turn >= s.turnCount - 1) ? s.lastBank : null,
-      setup: { idx: s.setupIdx, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
+      setup: { idx: s.setupIdx, half: (s.setupOrder || []).length / 2, sub: s.setupSub, spot: s.setupSpot, who: s.phase === 'setup' ? setupPlayer(s).id : null },
       order: { rolls: JSON.parse(JSON.stringify(s.orderRolls || {})), tie: s.orderTie ? s.orderTie.slice() : null, first: s.firstPlayer || null },
       mustDiscard: JSON.parse(JSON.stringify(s.mustDiscard)),
       trade: s.trade ? JSON.parse(JSON.stringify(s.trade)) : null,

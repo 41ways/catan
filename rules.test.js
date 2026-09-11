@@ -610,6 +610,17 @@ group('발전 카드');
   eq(a.roads.length, roadsBefore + 2, '도로 2개가 늘었다');
   eq(JSON.stringify(a.res), resBefore, '자원은 그대로');
 
+  // 주사위 전에 도로 건설 — 공짜 도로를 놓고 나서도 주사위는 굴려야 한다
+  s2.playedDev = false; s2.phase = 'roll'; s2.dice = null;
+  a.dev.push({ type: 'road', turn: 0 });
+  ok(R.playDev(s2, 'p0', 'road', []).ok, '굴리기 전 도로 건설');
+  eq(s2.phase, 'roll', '굴리기 전 단계 그대로');
+  ok(!R.build(s2, 'p0', 'settlement', R.legalSettlements(s2, 'p0')[0] || 0).ok, '굴리기 전에는 공짜 도로 말고는 못 짓는다');
+  ok(R.build(s2, 'p0', 'road', R.legalRoads(s2, 'p0')[0]).ok, '굴리기 전에 공짜 도로 1');
+  ok(R.build(s2, 'p0', 'road', R.legalRoads(s2, 'p0')[0]).ok, '굴리기 전에 공짜 도로 2');
+  ok(R.roll(s2, 'p0').ok, '도로를 다 놓고 주사위를 굴린다');
+  if (s2.phase === 'discard' || s2.phase === 'robber') { s2.phase = 'main'; }
+
   s2.playedDev = false;
   ok(R.playDev(s2, 'p0', 'knight', []).ok, '기사');
   eq(s2.phase, 'robber', '기사를 쓰면 도둑을 옮긴다');
@@ -891,6 +902,54 @@ group('무작위 120판 완주');
     }
     R.endTurn(s, cur.id);
   }
+})();
+
+group('준비 중에 나가기');
+function spOf(s) { return s.players[s.setupOrder[s.setupIdx]]; }
+(function () {
+  // 순서를 정하다 한 명이 나가면 — 두 바퀴째 판정이 남은 인원 기준이어야 한다
+  var s = R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }, { id: 'p3', name: '라' }], 31);
+  R.rollForOrder(s, 'p0'); R.rollForOrder(s, 'p1'); R.rollForOrder(s, 'p2');
+  R.dropPlayer(s, 'p3');
+  var g = 0;
+  while (s.phase === 'order' && g++ < 50) {           // 동점 재굴림
+    (s.orderTie || s.players.filter(function (q) { return !q.out; }).map(function (q) { return q.id; }))
+      .forEach(function (id) { if (s.orderRolls[id] === undefined) R.rollForOrder(s, id); });
+  }
+  eq(s.phase, 'setup', '세 명으로 준비 시작');
+  eq(s.setupOrder.length, 6, '순서는 남은 셋으로 두 바퀴');
+  var got = {};
+  while (s.phase === 'setup') {
+    var sp = spOf(s);
+    var cards = function (p) { var n = 0; for (var c in p.res) n += p.res[c]; return n; };
+    var b0 = cards(sp);
+    if (s.setupSub === 'settlement') {
+      var idx = s.setupIdx;
+      R.placeSettlement(s, sp.id, R.legalSettlements(s, sp.id)[0]);
+      if (idx >= 3) got[sp.id] = cards(sp) - b0;
+    } else R.placeRoad(s, sp.id, R.legalRoads(s, sp.id)[0]);
+  }
+  ok(Object.keys(got).length === 3 && Object.keys(got).every(function (id) { return got[id] > 0 || true; }), '두 바퀴째 마을 셋');
+  var anyZero = s.setupOrder.slice(3).some(function (i) {
+    var p = s.players[i];
+    return p.settlements.length === 2 && got[p.id] === 0 &&
+      s.board.verts[p.settlements[1]].hexes.some(function (h) { return s.board.hexes[h].res; });
+  });
+  ok(!anyZero, '두 바퀴째 마을은 둘레 자원을 받는다(나간 사람이 있어도)');
+})();
+(function () {
+  // 마지막 배치 차례에서 먼저 놓은 사람이 나가면 첫 주사위는 남은 사람이 굴린다
+  var s = settleOrder(R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 12));
+  var firstIdx = s.setupOrder[0], first = s.players[firstIdx];
+  while (s.phase === 'setup' && s.setupIdx < s.setupOrder.length - 1) {
+    var sp = spOf(s);
+    if (s.setupSub === 'settlement') R.placeSettlement(s, sp.id, R.legalSettlements(s, sp.id)[0]);
+    else R.placeRoad(s, sp.id, R.legalRoads(s, sp.id)[0]);
+  }
+  eq(spOf(s).id, first.id, '마지막 배치는 먼저 놓은 사람');
+  R.dropPlayer(s, first.id);
+  eq(s.phase, 'roll', '준비가 끝났다');
+  ok(!R.current(s).out, '첫 주사위는 남은 사람이 굴린다');
 })();
 
 console.log('');
