@@ -124,7 +124,7 @@
   }
 
   /* 이번 차례에 무엇을 할까 — 하나씩 돌려준다 */
-  function act(v, skill) {
+  function act(v, skill, skip) {
     var p = me(v);
     if (!p) return null;
     skill = skill === undefined ? 1 : skill;
@@ -134,6 +134,9 @@
       return { action: 'roll', args: [] };
     }
     if (v.phase !== 'main') return null;
+
+    // 도로 건설 카드로 받은 공짜 도로부터 놓는다 — 안 놓으면 차례를 넘길 때 버려졌다
+    if (v.freeRoads > 0 && v.legal.roads.length) return { action: 'build', args: ['road', v.legal.roads[0]] };
 
     var barbSoon = v.barb >= CK.BARB_TRACK - 2;
     var myPower = 0, knightPower = 0;
@@ -161,7 +164,7 @@
         var giveC = null, most = 0;
         CK.ALL.forEach(function (c) {
           if (c === lackC) return;
-          var rate = CK.tradeRate(p, c);
+          var rate = CK.tradeRate(p, c, v);
           var spare = p.res[c] - (CK.COST.city[c] || 0);
           if (spare >= rate && p.res[c] > most) { most = p.res[c]; giveC = c; }
         });
@@ -187,7 +190,7 @@
     // ④ 도시 개발 — 수도로 가는 길
     var devPick = bestDevelop(v, p);
     if (devPick && !(cityHungry && p.level[devPick] >= 2)) {
-      return { action: 'develop', args: [devPick, false] };
+      return { action: 'develop', args: [devPick, !!p.craneReady] };
     }
     // ④ 기사 — 내 몫의 방어가 모자랄 때만. 남는 자원은 도시에 쓰는 게 낫다
     var needKnight = knightPower < fairShare && v.barb >= 2;
@@ -210,7 +213,7 @@
       if (noWall.length) return { action: 'build', args: ['wall', noWall[0]] };
     }
     // ⑧ 진보카드 쓰기
-    var card = pickCard(v, p);
+    var card = pickCard(v, p, skip || []);
     if (card) return card;
     // ⑨ 도로 — 마을 자리를 열려고
     if (!v.legal.settlements.length && can(p, CK.COST.road) && p.left.road && v.legal.roads.length) {
@@ -247,7 +250,7 @@
     CK.TRACKS.forEach(function (t) {
       var lv = p.level[t];
       if (lv >= 5) return;
-      var need = lv + 1;
+      var need = lv + 1 - (p.craneReady ? 1 : 0);      // 기중기를 준비해 뒀으면 한 장 덜
       var com = CK.TRACK_COM[t];
       if (p.res[com] < need) return;
       // 수도를 올릴 도시가 없으면 4단계로 못 간다
@@ -317,7 +320,7 @@
     var give = null, most = 0;
     CK.ALL.forEach(function (c) {
       if (c === lack) return;
-      var rate = CK.tradeRate(p, c);
+      var rate = CK.tradeRate(p, c, v);
       var spare = p.res[c] - (need[c] || 0);
       if (spare >= rate && p.res[c] > most) { most = p.res[c]; give = c; }
     });
@@ -325,15 +328,20 @@
     return { action: 'bankTrade', args: [give, lack] };
   }
   // 쓸 수 있는 진보카드를 고른다 — 인자까지 채워서
-  function pickCard(v, p) {
-    var cards = p.cards || [];
+  // 쓸 수 있는 진보카드 — 뷰의 p.cards 는 장 수(숫자)이고 목록은 p.cardList 다.
+  // (예전엔 p.cards 를 목록으로 읽어 봇이 진보카드를 한 번도 쓰지 않았다)
+  // skip — 이번 차례에 이미 써 보려다 거절된 카드. 같은 카드를 되풀이하지 않는다.
+  function pickCard(v, p, skip) {
+    var cards = p.cardList || [];
     for (var i = 0; i < cards.length; i++) {
       var t = cards[i].type;
+      if (skip.indexOf(t) >= 0) continue;
       var args = cardArgs(v, p, t);
       if (args) return { action: 'playCard', args: [t].concat([args]) };
     }
     return null;
   }
+  function full(q) { return q.vpFull !== undefined ? q.vpFull : q.vp; }
   function cardArgs(v, p, t) {
     var opp = v.players.filter(function (q) { return q.id !== v.me && !q.out; });
     switch (t) {
@@ -377,15 +385,15 @@
         return rich.length ? [rich[0].id] : null;
       }
       case 'deserter': {
-        var withK = opp.filter(function (q) { return q.knightList && q.knightList.length; });
+        var withK = opp.filter(function (q) { return q.knights && q.knights.length; });
         return withK.length ? [withK[0].id] : null;
       }
       case 'wedding': {
-        var higher = opp.filter(function (q) { return q.vp > p.vp; });
+        var higher = opp.filter(function (q) { return full(q) > full(p); });
         return higher.length ? [] : null;
       }
       case 'saboteur': {
-        var hit = opp.filter(function (q) { return q.vp >= p.vp && q.cards >= 4; });
+        var hit = opp.filter(function (q) { return full(q) >= full(p) && q.cards >= 4; });
         return hit.length ? [] : null;
       }
       case 'fleet': {
@@ -394,7 +402,7 @@
         return m >= 4 ? [most] : null;
       }
       case 'trader': {
-        var rich2 = opp.filter(function (q) { return q.vp > p.vp && q.cards > 0; });
+        var rich2 = opp.filter(function (q) { return full(q) > full(p) && q.cards > 0; });
         if (!rich2.length) return null;
         return null;                                     // 손을 볼 수 없으니 봇은 넘긴다
       }
