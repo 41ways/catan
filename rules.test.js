@@ -952,6 +952,22 @@ function spOf(s) { return s.players[s.setupOrder[s.setupIdx]]; }
   ok(!R.current(s).out, '첫 주사위는 남은 사람이 굴린다');
 })();
 
+(function () {
+  // 다른 사람이 놓는 동안 뒤 차례 사람이 나가면 — 그 자리에서 준비가 멈추지 않는다
+  var s = settleOrder(R.newGame([{ id: 'p0', name: '가' }, { id: 'p1', name: '나' }, { id: 'p2', name: '다' }], 21));
+  var later = s.players[s.setupOrder[1]];
+  R.dropPlayer(s, later.id);
+  var g = 0;
+  while (s.phase === 'setup' && g++ < 40) {
+    var sp = spOf(s);
+    ok(!sp.out, '준비 차례에 나간 사람이 오지 않는다');
+    if (sp.out) break;
+    if (s.setupSub === 'settlement') R.placeSettlement(s, sp.id, R.legalSettlements(s, sp.id)[0]);
+    else R.placeRoad(s, sp.id, R.legalRoads(s, sp.id)[0]);
+  }
+  eq(s.phase, 'roll', '남은 사람끼리 준비를 마친다');
+})();
+
 console.log('');
 console.log(fail ? ('실패 ' + fail + ' / 통과 ' + pass) : ('전부 통과 — ' + pass + '개'));
 process.exit(fail ? 1 : 0);

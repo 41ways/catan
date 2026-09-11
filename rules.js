@@ -542,6 +542,9 @@
     note(s, 'road', e, pid);
     s.setupSpot = null; s.setupSub = 'settlement';
     s.setupIdx++;
+    // 다음 자리가 이미 나간 사람이면 건너뛴다 — dropPlayer 는 그 순간의 자리만 넘겨서, 나중 차례의
+    // 나간 사람 자리에서 준비가 멈췄다
+    while (s.setupIdx < s.setupOrder.length && s.players[s.setupOrder[s.setupIdx]].out) s.setupIdx++;
     if (s.setupIdx >= s.setupOrder.length) {
       s.phase = 'roll'; s.turn = firstRoller(s); s.turnCount = 1;   // 먼저 놓은 사람이 먼저 굴린다
       updateLongest(s);
