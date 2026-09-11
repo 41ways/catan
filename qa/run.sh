@@ -1,6 +1,6 @@
 #!/bin/sh
 # 화면을 실제로 돌려서 확인한다.
-#   sh qa/run.sh play  [판수]   — 한 판을 끝까지 돌리며 오류를 모은다
+#   sh qa/run.sh play  [base|ck] [판수] — 한 판을 끝까지 돌리며 오류를 모은다
 #   sh qa/run.sh pace  [base|ck] — 안내가 몇 초씩 떠 있었는지 재서 너무 빠른 곳을 찾는다
 # 미리 프로젝트 폴더를 http 로 띄워 두어야 한다:  python3 -m http.server 8899
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
