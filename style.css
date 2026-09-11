@@ -1728,3 +1728,17 @@ html, body { overflow-x: hidden; }
 
 /* 저작권 고지 — 타이틀 아래, 자세히 봐야 보일 만큼만 */
 .legal{margin:26px auto 0;max-width:36em;font-size:10.5px;line-height:1.75;color:var(--faint);opacity:.7;text-align:center;word-break:keep-all}
+
+/* ── 확장판 · 진보카드 대상 고르기 ──
+   기사·성벽 자리, 기사가 갈 곳, 주교·상인·발명가가 고를 땅, 외교관이 걷어낼 도로.
+   과녁이 없으면 판에서 누를 곳이 없어서 카드를 쓸 수 없었다. */
+.hexPick {
+  fill: rgba(255, 206, 90, .30); stroke: #ffcf5a; stroke-width: 3.4; stroke-dasharray: 6 4;
+  cursor: pointer; animation: hexPickPulse 1.4s ease-in-out infinite;
+}
+.hexPick:hover { fill: rgba(255, 206, 90, .48); }
+.hexPick.on { fill: rgba(255, 206, 90, .55); stroke-dasharray: none; }
+@keyframes hexPickPulse { 50% { stroke-opacity: .55; } }
+.edgePick { stroke: #ff6a5c; }
+.pickDot { fill: #ffd36b; }
+@media (prefers-reduced-motion: reduce) { .hexPick { animation: none; } }

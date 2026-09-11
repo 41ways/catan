@@ -14,6 +14,12 @@
   // 확장에서는 흙이라 부른다
   function resName(c) { return App.ext && c === 'b' ? '흙' : RN[c]; }
   function cardsOf(v) { return isExt(v) ? CK.ALL : RES; }
+  // 이름은 참가자가 직접 정한다. innerHTML 로 넣는 문장에는 반드시 이렇게 걸러서 넣는다.
+  function H(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
   var PCOLOR = { red: '#d95f4a', blue: '#5a8fd9', orange: '#e09a3e', white: '#d8dce6' };
   var EMOJI = {
     b: '\uD83E\uDDF1', l: '\uD83E\uDEB5', w: '\uD83D\uDC11', g: '\uD83C\uDF3E', o: '\uD83E\uDEA8',
@@ -271,6 +277,7 @@
     // 단계가 바뀌면 선택을 정리한다
     if (!prev || prev.phase !== v.phase || prev.turn !== v.turn) {
       App.build = null; App.discardSel = [];
+      App.pickVert = App.pickHex = App.pickEdge = null; App.knightSel = null;
     }
     App.view = v;
     // 새로 굴린 주사위면 가운데에 연출로 보여준다
@@ -922,7 +929,7 @@
       if (mineTurn) msg += ' · 내 차례입니다';
     } else if (v.phase === 'setup') {
       actor = playerIn(v, v.setup.who);
-      var second = v.setup.idx >= v.players.length;
+      var second = v.setup.idx >= (v.setup.half || v.players.length);
       var what = (isExt(v) && second) ? '도시' : '마을';
       msg = (actor && actor.id === v.me)
         ? '내 차례 — ' + (v.setup.sub === 'settlement' ? EUL(what) + ' 놓으세요' : '도로를 놓으세요')
@@ -1260,7 +1267,7 @@
     var p = playerIn(v, v.setup.who);
     if (!p) return;
     var mine = p.id === v.me;
-    var round2 = v.setup.idx >= v.players.length;
+    var round2 = v.setup.idx >= (v.setup.half || v.players.length);
     showPlaque(mine ? '\uD83C\uDFD8\uFE0F' : '\u23ED\uFE0F',
       mine ? '내 차례 — 놓을 곳을 고르세요' : GA(p.name) + ' 놓는 중',
       mine ? (round2 ? '두 번째 마을과 도로 — 이 마을 둘레의 자원을 바로 받습니다'
@@ -2042,6 +2049,36 @@
       });
     }
 
+    // 확장판 · 진보카드 — 판에서 대상을 고르는 모드. 클릭은 clickVertex/clickEdge/clickRobber 가
+    // 처리하지만 과녁을 그려 주지 않으면 누를 곳이 없어 기사·성벽·카드를 쓸 수가 없었다.
+    var pick = pickTargets(v, mode);
+    (pick.hexes || []).forEach(function (hi) {
+      var h = v.board.hexes[hi];
+      var sel = App.pickHex && App.pickHex.first === hi;
+      var poly = svgEl('polygon', { points: hexPoints(px(h.X), py(h.Y)), class: 'hexPick' + (sel ? ' on' : '') });
+      poly.addEventListener('click', function () { clickRobber(hi); });
+      g.appendChild(poly);
+    });
+    (pick.edges || []).forEach(function (ei) {
+      var e = v.board.edges[ei];
+      var a = v.board.verts[e.a], b = v.board.verts[e.b];
+      var line = svgEl('line', { x1: px(a.X), y1: py(a.Y), x2: px(b.X), y2: py(b.Y), 'stroke-width': 16, class: 'edgeHit edgePick' });
+      line.addEventListener('click', function () { clickEdge(ei); });
+      g.appendChild(line);
+    });
+    (pick.verts || []).forEach(function (vi) {
+      var vert = v.board.verts[vi];
+      var halo = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 11, class: 'spotHalo' });
+      halo.style.animationDelay = ((vi % 7) * 0.14) + 's';
+      g.appendChild(halo);
+      g.appendChild(svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 10, class: 'spotDot pickDot' }));
+      pick.late.push(function () {                  // 건물·기사 위에 얹어야 눌린다
+        var hit = svgEl('circle', { cx: px(vert.X), cy: py(vert.Y), r: 19, class: 'spotHit' });
+        hit.addEventListener('click', function () { clickVertex(vi); });
+        g.appendChild(hit);
+      });
+    });
+
     // 건물
     v.board.verts.forEach(function (vert) {
       if (!vert.b) return;
@@ -2123,13 +2160,38 @@
       }
       g.appendChild(shape);
     });
+    pick.late.forEach(function (f) { f(); });
+  }
+
+  /** 판에서 누를 대상 — 기사·성벽 짓기, 기사 이동, 진보카드 */
+  function pickTargets(v, mode) {
+    var out = { verts: null, edges: null, hexes: null, late: [] };
+    if (!isMyTurn(v) || !v.legal) return out;
+    if (App.pickVert) out.verts = App.pickVert.list;
+    else if (App.pickEdge) out.edges = v.legal.openRoads || [];
+    else if (App.pickHex) out.hexes = hexTargets(v, App.pickHex);
+    else if (App.knightSel !== null && App.knightSel !== undefined) out.verts = (v.legal.knightMoves || {})[App.knightSel] || [];
+    else if (mode === 'knight') out.verts = v.legal.knightSpots || [];
+    else if (mode === 'wall') out.verts = v.legal.walls || [];
+    return out;
+  }
+  function hexTargets(v, pk) {
+    var out = [];
+    v.board.hexes.forEach(function (h, i) {
+      if (pk.kind === 'inventor') { if (pk.list.indexOf(i) >= 0) out.push(i); }
+      else if (pk.kind === 'bishop') { if (i !== v.robber) out.push(i); }
+      else if (pk.kind === 'merchant') {
+        if (h.res && h.corners.some(function (vi) { var b = v.board.verts[vi].b; return b && b.p === v.me; })) out.push(i);
+      }
+    });
+    return out;
   }
 
   // 지금 판에서 자리를 보여줄 모드
   function buildModeNow(v) {
     if (!isMyTurn(v)) return null;
     if (v.phase === 'setup') return v.setup.sub === 'settlement' ? 'settlement' : 'road';
-    if (v.phase === 'main' && v.freeRoads > 0) return 'road';
+    if ((v.phase === 'main' || v.phase === 'roll') && v.freeRoads > 0) return 'road';   // 주사위 전에 쓴 도로 건설 카드
     if (v.phase === 'main') return App.build;
     return null;
   }
@@ -2265,7 +2327,8 @@
         bub.appendChild(dots);
         d.appendChild(bub);
       }
-      d.appendChild(el('span', 'vp', (p.id === v.me && p.vpFull !== undefined ? p.vpFull : p.vp) + '점'));
+      // 기본판은 승점 카드가 비밀이라 본인만 vpFull 을 받고, 확장판은 모두 받는다
+      d.appendChild(el('span', 'vp', (p.vpFull !== undefined ? p.vpFull : p.vp) + '점'));
       var cardIc = el('span', 'st');
       cardIc.appendChild(el('i', 'cardIc'));
       cardIc.appendChild(document.createTextNode(String(p.cards)));
@@ -2535,7 +2598,7 @@
       var title = type === 'spy' ? '첩자 — 진보카드를 가져올 상대'
         : type === 'deserter' ? '변절자 — 기사를 데려올 상대' : '전문 상인 — 손을 볼 상대';
       var list = opp;
-      if (type === 'trader') list = opp.filter(function (q) { return q.vp > p.vp; });
+      if (type === 'trader') list = opp.filter(function (q) { return (q.vpFull !== undefined ? q.vpFull : q.vp) > (p.vpFull !== undefined ? p.vpFull : p.vp); });
       if (!list.length) { toast(type === 'trader' ? '나보다 점수가 높은 사람이 없습니다.' : '고를 상대가 없습니다.'); return; }
       openPick(title, '', list.map(function (q) {
         return { label: q.name, fn: function () {
@@ -2788,7 +2851,7 @@
     /* ── 마을·도로 놓기 ── */
     if (v.phase === 'setup') {
       if (mineNow) {
-        var second = v.setup.idx >= v.players.length;
+        var second = v.setup.idx >= (v.setup.half || v.players.length);
         var what = (isExt(v) && second) ? '도시' : '마을';
         if (v.setup.sub === 'settlement') {
           say2('판에서 <b>' + EUL(what) + ' 놓을 자리</b>를 누르세요.',
@@ -2799,7 +2862,7 @@
             '주황 굵은 선이 놓을 수 있는 자리입니다.');
         }
       } else {
-        say2(GA(actor ? actor.name : '?') + ' 자리를 고르는 중…', '차례가 오면 알려 드립니다.');
+        say2(H(GA(actor ? actor.name : '?')) + ' 자리를 고르는 중…', '차례가 오면 알려 드립니다.');
       }
       return;
     }
@@ -2815,7 +2878,7 @@
           App.discardSel.length !== need, 'warn');
       } else {
         var names = Object.keys(v.mustDiscard).map(function (pid) { return playerIn(v, pid).name; });
-        say2(GA(names.join(', ')) + ' 카드를 버리는 중…', '나는 버릴 것이 없습니다.');
+        say2(H(GA(names.join(', '))) + ' 카드를 버리는 중…', '나는 버릴 것이 없습니다.');
       }
       return;
     }
@@ -2824,13 +2887,13 @@
     if (v.phase === 'robber') {
       if (myTurn) say2('판에서 <b>도둑을 옮길 타일</b>을 누르세요.',
         '옮긴 타일에 마을이 닿은 사람에게서 카드를 한 장 빼앗습니다. 빗금 친 지금 자리는 고를 수 없습니다.');
-      else say2(GA(actor ? actor.name : '?') + ' 도둑을 옮기는 중…', '');
+      else say2(H(GA(actor ? actor.name : '?')) + ' 도둑을 옮기는 중…', '');
       return;
     }
 
     /* ── 남의 차례 ── */
     if (!myTurn) {
-      say2(actor ? (actor.name + '의 차례입니다.') : '', '지켜보는 차례입니다. 위쪽 안내줄에 무슨 일이 일어나는지 나옵니다.');
+      say2(actor ? (H(actor.name) + '의 차례입니다.') : '', '지켜보는 차례입니다. 위쪽 안내줄에 무슨 일이 일어나는지 나옵니다.');
       return;
     }
 
@@ -2869,7 +2932,9 @@
       return;
     }
     if (App.pickVert || App.pickHex || App.pickEdge) {
-      say2('<b>진보카드</b> — 판에서 대상을 고르세요.', '');
+      say2('<b>진보카드</b> — 판에서 반짝이는 대상을 고르세요.', '');
+      // 카드는 대상을 고른 뒤에야 쓰이므로, 그만두면 카드는 손에 그대로 남는다
+      ghost('그만두기', function () { App.pickVert = App.pickHex = App.pickEdge = null; render(); });
       return;
     }
 
@@ -3015,13 +3080,13 @@
         else if (!t.replies[q.id]) waiting.push(q);
       });
       msg.innerHTML = '내 제안 — <b>' + giveTxt + '</b> 주고 <b>' + wantTxt + '</b> 받기.' +
-        (waiting.length ? ' (' + waiting.map(function (q) { return q.name; }).join(', ') + ' 대답 대기 중)' : '');
+        (waiting.length ? ' (' + H(waiting.map(function (q) { return q.name; }).join(', ')) + ' 대답 대기 중)' : '');
       yes.forEach(function (q) {
-        btn(q.name + '와 교환', function () { act('acceptTrade', [q.id]); }, true);
+        btn(WA(q.name) + ' 교환', function () { act('acceptTrade', [q.id]); }, true);   // 받침 따라 와/과
       });
       btn('제안 거두기', function () { act('cancelTrade', []); });
     } else {
-      msg.innerHTML = '<b>' + from.name + '</b>의 제안 — ' + giveTxt + ' 주고 <b>' + wantTxt + '</b> 받겠답니다.';
+      msg.innerHTML = '<b>' + H(from.name) + '</b>의 제안 — ' + giveTxt + ' 주고 <b>' + wantTxt + '</b> 받겠답니다.';
       var myReply = t.replies[v.me];
       if (myReply) {
         msg.innerHTML += ' (' + (myReply === 'yes' ? '받겠다고 했습니다' : '거절했습니다') + ')';
@@ -3189,7 +3254,7 @@
     if (!box) return;
     var txt = '';
     if (v.phase === 'setup' && v.setup && v.setup.who === v.me) {
-      var second = v.setup.idx >= v.players.length;
+      var second = v.setup.idx >= (v.setup.half || v.players.length);
       var what = (isExt(v) && second) ? '도시' : '마을';
       txt = v.setup.sub === 'settlement'
         ? '주황 점을 눌러 ' + EUL(what) + ' 놓으세요 · ' + (v.legal.settlements || []).length + '곳'
@@ -3438,7 +3503,9 @@
   $('btnTradeCancel').onclick = function () { $('tradeModal').classList.add('hidden'); };
   $('btnTradeOffer').onclick = function () {
     var g = {}, w = {}, gn = 0, wn = 0;
-    RES.forEach(function (c) {
+    // 폼은 확장판이면 상품(옷감·종이·화폐)까지 8가지를 보여 준다. 기본 자원 5가지만 모으면
+    // 상품을 넣은 제안이 조용히 빠지거나 "한 장 이상씩 골라 주세요" 로 막혔다.
+    cardsOf(App.view).forEach(function (c) {
       if (App.tGive[c]) { g[c] = App.tGive[c]; gn += g[c]; }
       if (App.tWant[c]) { w[c] = App.tWant[c]; wn += w[c]; }
     });
@@ -3468,8 +3535,9 @@
   $('themeToggle').onchange = function () { applyTheme($('themeToggle').checked); };
 
   // 안내는 타이틀의 `가이드` 를 눌렀을 때만 연다
-  $('name').value = localStorage.getItem('catan.name') || '';
-  $('name').addEventListener('change', function () { localStorage.setItem('catan.name', myName()); });
+  // 저장소가 막힌 브라우저(사생활 보호 모드 등)에서는 localStorage 가 던진다 — 그 뒤 스크립트가 통째로 멈추지 않게
+  try { $('name').value = localStorage.getItem('catan.name') || ''; } catch (e) {}
+  $('name').addEventListener('change', function () { try { localStorage.setItem('catan.name', myName()); } catch (e) {} });
 
   App.readLine = readLine;
   App.act = act; App.doAction = doAction; App.pushViews = pushViews; App.render = render;
